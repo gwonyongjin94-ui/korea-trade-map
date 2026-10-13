@@ -1,7 +1,12 @@
 import { josa, type Lang } from './i18n'
 
 const ko = {
-  tabs: { map: '🗺️ 무역 지도', theory: '📐 이론 분석' },
+  tabs: { map: '🗺️ 무역 지도', theory: '📐 이론 분석', ricardo: '🧪 리카도 모형' },
+  ricardo: {
+    title: '🧪 리카도 모형 탐색기',
+    body: '두 나라·두 재화로 기회비용 → 비교우위 → 교역가격 → 교역이익을 직접 실험합니다. 오른쪽 위 예시에서 "한국·베트남: 반도체와 쌀"을 고르면 이 지도의 실제 한국–베트남 무역과 비교해 볼 수 있고, 🎓 학습 모드는 퀴즈와 과제로 순서대로 안내합니다.',
+    open: '새 창에서 열기',
+  },
   intro: {
     title: '수업에서 배운 무역이론으로 읽기',
     body: '같은 무역 데이터를 세 가지 이론 도구로 봅니다. 위에서 연도·품목·흐름을 바꾸면 모든 계산이 다시 됩니다. 점이나 막대를 누르면 그 나라가 강조됩니다.',
@@ -29,7 +34,7 @@ const ko = {
     countries: (n: number) => `${n}개국`,
     se: (se: string, sig: boolean) => `표준오차 ${se}${sig ? ' · 5% 유의' : ' · 유의하지 않음'}`,
     reading: (b1: number, b2: number, r2: string) =>
-      `상대국 GDP가 1% 크면 한국과의 교역은 약 ${Math.abs(b1).toFixed(2)}% ${b1 >= 0 ? '많고' : '적고'}, 거리가 1% 멀면 약 ${Math.abs(b2).toFixed(2)}% ${b2 <= 0 ? '적습니다' : '많습니다'}. 두 변수만으로 나라 간 교역 차이의 ${r2}를 설명합니다.`,
+      `상대국 GDP가 1% 크면 한국과의 교역은 약 ${Math.abs(b1).toFixed(2)}% ${b1 >= 0 ? '많고' : '적고'}, 거리가 1% 멀면 약 ${Math.abs(b2).toFixed(2)}% ${b2 <= 0 ? '적습니다' : '많습니다'}. 두 변수만으로 나라별 교역액(로그) 차이의 ${r2}를 설명합니다.`,
     benchmark: '실증 연구에서 흔히 나오는 값은 GDP 탄력성 ≈ 1, 거리 탄력성 ≈ −1입니다.',
     over: '예측보다 많이 거래',
     under: '예측보다 적게 거래',
@@ -39,7 +44,7 @@ const ko = {
       `표본: GDP ${min} 이상인 교역 상대국. 거리는 수도 간 대권거리, GDP는 IMF 세계경제전망(명목, 달러)이며 최근 연도는 추정치일 수 있습니다.`,
     cautions: (top: string) => [
       `중력모형은 "얼마나" 거래할지를 설명하고 "무엇을" 거래할지는 설명하지 않습니다. 예측보다 훨씬 많이 거래하는 나라(${top})는 선박 등록(편의치적), 중고차 재수출, 한국 기업의 현지 생산·부품 거래(글로벌 가치사슬), 중계무역 같은 다른 이유를 찾아볼 만합니다.`,
-      '한 해 단면 회귀라 한국의 GDP와 다자간 저항(다른 나라들과의 상대적 거리)은 상수항에 들어갑니다. 인과관계가 아니라 상관관계입니다.',
+      '한 해 단면 회귀라 한국의 GDP와 한국 쪽 다자간 저항은 모든 상대국에 같아 상수항에 들어가지만, 상대국 쪽 다자간 저항(그 나라가 다른 나라들과 얼마나 가깝고 무역장벽이 낮은지)과 FTA·언어 같은 변수는 빠져 있어 계수가 편향될 수 있습니다. 인과관계가 아니라 상관관계로 읽으세요.',
     ],
   },
   iit: {
@@ -77,7 +82,9 @@ const ko = {
     ricardo: '리카도 모형에서는 기회비용이 낮은 재화에 비교우위가 있습니다. RCA는 실제 수출 구조에서 그 결과를 거꾸로 읽어낸 지표입니다.',
     cautions: [
       'RCA는 비교우위의 결과(수출 특화)를 보여줄 뿐 원인(생산성, 요소부존, 보조금, 해외투자)은 따로 분석해야 합니다.',
-      '홍콩·싱가포르의 중계 수출도 세계 합계에 들어가고, 러시아·이란처럼 자료가 끊긴 나라는 빠져 있습니다.',
+      '"세계"에서 매년 보고하지 않은 나라는 빠져 있습니다: 베트남·아랍에미리트(2024년 미보고), 러시아(2022년부터 미보고), 이란·이라크·알제리. 2023년 기준으로 베트남·UAE를 넣어 다시 계산하면 품목별 RCA가 −7%~+4% 달라지지만, 1보다 큰지 작은지는 바뀌지 않습니다.',
+      '홍콩·싱가포르의 중계 수출도 세계 합계에 들어갑니다.',
+      '93류(무기·탄약)는 나라마다 군수품을 통관 통계에 넣는 방식이 달라 RCA를 해석할 때 특히 주의해야 합니다.',
     ],
   },
 }
@@ -85,7 +92,12 @@ const ko = {
 export type TheoryText = typeof ko
 
 const en: TheoryText = {
-  tabs: { map: '🗺️ Trade map', theory: '📐 Theory' },
+  tabs: { map: '🗺️ Trade map', theory: '📐 Theory', ricardo: '🧪 Ricardian model' },
+  ricardo: {
+    title: '🧪 Ricardian model explorer',
+    body: 'Experiment with two countries and two goods, from opportunity cost to comparative advantage, the terms of trade and the gains from trade. Pick "Korea & Vietnam: chips and rice" from the examples at the top right to compare with the real Korea–Vietnam trade on the map; 🎓 learn mode walks through it with quizzes and tasks.',
+    open: 'Open in a new window',
+  },
   intro: {
     title: 'Reading the data with trade theory',
     body: 'The same trade data through three tools from the course. Change the year, product or flow above and everything is recalculated. Click a dot or bar to highlight that country.',
@@ -113,7 +125,7 @@ const en: TheoryText = {
     countries: (n) => `${n} countries`,
     se: (se, sig) => `s.e. ${se}${sig ? ' · significant at 5%' : ' · not significant'}`,
     reading: (b1, b2, r2) =>
-      `A partner with 1% larger GDP trades about ${Math.abs(b1).toFixed(2)}% ${b1 >= 0 ? 'more' : 'less'} with Korea; 1% more distance means about ${Math.abs(b2).toFixed(2)}% ${b2 <= 0 ? 'less' : 'more'}. The two variables explain ${r2} of the variation across countries.`,
+      `A partner with 1% larger GDP trades about ${Math.abs(b1).toFixed(2)}% ${b1 >= 0 ? 'more' : 'less'} with Korea; 1% more distance means about ${Math.abs(b2).toFixed(2)}% ${b2 <= 0 ? 'less' : 'more'}. The two variables explain ${r2} of the variation in (log) trade across countries.`,
     benchmark: 'Empirical studies typically find a GDP elasticity near 1 and a distance elasticity near −1.',
     over: 'Trades more than predicted',
     under: 'Trades less than predicted',
@@ -123,7 +135,7 @@ const en: TheoryText = {
       `Sample: partners with GDP of at least ${min}. Distance is great-circle between capitals; GDP is IMF World Economic Outlook (nominal USD), and the latest year may be an estimate.`,
     cautions: (top) => [
       `The gravity model explains how much countries trade, not what. Partners far above the line (${top}) point to other reasons such as ship registration (flags of convenience), used-car re-exports, Korean factories abroad and parts trade in global value chains, or entrepôt trade.`,
-      'This is a single-year cross-section: Korea’s GDP and multilateral resistance sit in the intercept. It shows correlation, not causation.',
+      'This is a single-year cross-section: Korea’s GDP and Korea’s own multilateral resistance are the same for every partner and sit in the intercept, but the partner side of multilateral resistance, FTAs and language are left out and can bias the coefficients. Read it as correlation, not causation.',
     ],
   },
   iit: {
@@ -161,7 +173,9 @@ const en: TheoryText = {
     ricardo: 'In the Ricardian model a country has a comparative advantage in goods with a lower opportunity cost. RCA reads that outcome back from actual export patterns.',
     cautions: [
       'RCA shows the result of comparative advantage (export specialisation), not its cause (productivity, endowments, subsidies, FDI).',
-      'Re-exports from Hong Kong and Singapore are in the world total; countries that stopped reporting, such as Russia and Iran, are not.',
+      'Countries missing any year are left out of "world": Vietnam and the UAE (2024 not yet reported), Russia (from 2022), Iran, Iraq and Algeria. Recomputing 2023 with Vietnam and the UAE moves product RCAs by −7% to +4%, without moving any across 1.',
+      'Re-exports from Hong Kong and Singapore are in the world total.',
+      'Chapter 93 (arms and ammunition) is reported inconsistently across countries’ customs data; read its RCA with particular care.',
     ],
   },
 }

@@ -48,6 +48,17 @@ export function ols2(y: number[], x1: number[], x2: number[]): Fit | null {
   return { a, b1, b2, se1: Math.sqrt((sigma2 * s22) / det), se2: Math.sqrt((sigma2 * s11) / det), r2: 1 - ssr / syy, n }
 }
 
+/**
+ * Two-sided 5% critical value of Student's t with df degrees of freedom: exact table for tiny samples,
+ * Cornish–Fisher expansion around 1.96 otherwise (within 0.001 from df = 6 up).
+ */
+export function tCritical(df: number): number {
+  const table = [Infinity, 12.706, 4.303, 3.182, 2.776, 2.571]
+  if (df < table.length) return table[Math.max(0, Math.floor(df))]
+  const z = 1.959964
+  return z + (z ** 3 + z) / (4 * df) + (5 * z ** 5 + 16 * z ** 3 + 3 * z) / (96 * df ** 2) + (3 * z ** 7 + 19 * z ** 5 + 17 * z ** 3 - 15 * z) / (384 * df ** 3)
+}
+
 export const EARTH_RADIUS_KM = 6371
 
 /** Great-circle distance in km between two [longitude, latitude] points. */

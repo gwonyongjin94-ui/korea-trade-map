@@ -4,6 +4,7 @@ import { ControlPanel } from './components/ControlPanel'
 import { RankTable } from './components/RankTable'
 import { StatCards, type Stat } from './components/StatCards'
 import { TradeMap, type LegendSpec } from './components/TradeMap'
+import { RicardoTab } from './components/RicardoTab'
 import { TheoryTab } from './components/theory/TheoryTab'
 import { TrendChart } from './components/TrendChart'
 import { PRODUCTS, productById } from './data/products'
@@ -33,7 +34,8 @@ const LAST = YEARS[YEARS.length - 1]
 const VIEWS: View[] = ['export', 'import', 'balance', 'total']
 const TABLE_ROWS = 20
 
-type Tab = 'map' | 'theory'
+type Tab = 'map' | 'theory' | 'ricardo'
+const TABS: Tab[] = ['map', 'theory', 'ricardo']
 
 function initialLang(): Lang {
   try {
@@ -61,7 +63,7 @@ function readHash(): UrlState {
   const year = Number(q.get('year'))
   const country = q.get('country')
   return {
-    tab: q.get('tab') === 'theory' ? 'theory' : 'map',
+    tab: TABS.includes(q.get('tab') as Tab) ? (q.get('tab') as Tab) : 'map',
     view: VIEWS.includes(view) ? view : 'export',
     product: PRODUCTS.some((p) => p.id === product) ? product : 'TOTAL',
     year: YEARS.includes(year) ? year : LAST,
@@ -95,7 +97,7 @@ export default function App() {
   useEffect(() => {
     const q = new URLSearchParams({ view, product, year: String(year) })
     if (selected) q.set('country', selected)
-    if (tab === 'theory') q.set('tab', 'theory')
+    if (tab !== 'map') q.set('tab', tab)
     history.replaceState(null, '', `#${q}`)
   }, [tab, view, product, year, selected])
 
@@ -265,8 +267,8 @@ export default function App() {
           </div>
         </header>
 
-        <nav className="mb-5 flex gap-1 border-b border-slate-200 dark:border-slate-800" aria-label="tabs">
-          {(['map', 'theory'] as const).map((k) => (
+        <nav className="mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 dark:border-slate-800" aria-label="tabs">
+          {TABS.map((k) => (
             <button
               key={k}
               type="button"
@@ -276,7 +278,7 @@ export default function App() {
               }}
               aria-current={tab === k ? 'page' : undefined}
               className={
-                '-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold transition ' +
+                '-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-semibold whitespace-nowrap transition sm:px-4 ' +
                 (tab === k
                   ? 'border-slate-900 text-slate-900 dark:border-white dark:text-white'
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200')
@@ -287,7 +289,9 @@ export default function App() {
           ))}
         </nav>
 
-        {tab === 'theory' ? (
+        {tab === 'ricardo' ? (
+          <RicardoTab />
+        ) : tab === 'theory' ? (
           <TheoryTab
             view={view}
             product={product}
@@ -298,6 +302,10 @@ export default function App() {
             onProduct={setProduct}
             onYear={setYear}
             onPick={setSelected}
+            onRicardo={() => {
+              setTab('ricardo')
+              window.scrollTo(0, 0)
+            }}
           />
         ) : (
           <>

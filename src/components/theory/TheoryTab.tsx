@@ -8,8 +8,6 @@ import { GravityCard } from './GravityCard'
 import { IitCard } from './IitCard'
 import { RcaCard } from './RcaCard'
 
-const RICARDO_URL = 'https://gwonyongjin94-ui.github.io/ricardian-model/'
-
 interface Props {
   view: View
   product: string
@@ -20,6 +18,7 @@ interface Props {
   onProduct: (id: string) => void
   onYear: (y: number) => void
   onPick: (iso: string | null) => void
+  onRicardo: () => void
 }
 
 export function TheoryTab(p: Props) {
@@ -38,14 +37,13 @@ export function TheoryTab(p: Props) {
             <h2 className="text-lg font-bold">{tt.intro.title}</h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{tt.intro.body}</p>
           </div>
-          <a
-            href={RICARDO_URL}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            onClick={p.onRicardo}
             className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
           >
-            {tt.intro.ricardo} ↗
-          </a>
+            {tt.intro.ricardo} →
+          </button>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {tt.intro.tools.map(([icon, name, what]) => (

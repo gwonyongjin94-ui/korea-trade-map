@@ -3,7 +3,7 @@ import type { View } from '../../data/trade'
 import { money } from '../../format'
 import { lonLat } from '../../geo'
 import { countryName, useI18n } from '../../i18n'
-import { gravity, MIN_GDP } from '../../theory'
+import { gravity, MIN_GDP, tCritical } from '../../theory'
 import { THEORY_TEXT } from '../../theoryText'
 import { LogScatter, type ScatterPoint } from './LogScatter'
 import { TheoryCard } from './TheoryCard'
@@ -74,7 +74,7 @@ export function GravityCard({ view, product, year, selected, onPick }: Props) {
   const sorted = [...points].sort((a, b) => b.ratio - a.ratio)
   const over = sorted.slice(0, LISTED)
   const under = sorted.slice(-LISTED).reverse()
-  const sig = (b: number, se: number) => Math.abs(b / se) > 1.96
+  const sig = (b: number, se: number) => Math.abs(b / se) > tCritical(fit.n - 3)
 
   return (
     <TheoryCard

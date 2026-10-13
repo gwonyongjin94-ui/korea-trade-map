@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TradeData } from './data/trade'
-import { distanceKm, gl, gravity, ols2, rcaOf, rcaYear } from './theory'
+import { distanceKm, gl, gravity, ols2, rcaOf, rcaYear, tCritical } from './theory'
 
 describe('ols2', () => {
   it('recovers exact coefficients from noiseless data', () => {
@@ -34,6 +34,15 @@ describe('ols2', () => {
     expect(ols2([1, 2, 3], [1, 2, 3], [3, 2, 1])).toBeNull()
     // x2 is a multiple of x1: no unique solution.
     expect(ols2([1, 2, 3, 4], [1, 2, 3, 4], [2, 4, 6, 8])).toBeNull()
+  })
+})
+
+describe('t critical values', () => {
+  it('matches the t table at 5% two-sided', () => {
+    expect(tCritical(3)).toBeCloseTo(3.182, 3)
+    expect(tCritical(10)).toBeCloseTo(2.228, 2)
+    expect(tCritical(30)).toBeCloseTo(2.042, 3)
+    expect(tCritical(145)).toBeCloseTo(1.976, 3)
   })
 })
 
