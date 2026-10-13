@@ -1,0 +1,60 @@
+# Korea Trade Map · 한국 무역 지도
+
+**▶ 바로 사용하기 · Live demo: https://gwonyongjin94-ui.github.io/korea-trade-map/**
+
+한국이 **누구와, 무엇을, 얼마나** 거래하는지 세계지도 위 화살표로 보여주는 인터랙티브 웹 앱입니다. [리카도 모형 탐색기](https://github.com/gwonyongjin94-ui/ricardian-model)와 같은 지도 중심 화면에 실제 무역 통계(UN Comtrade, 2015–2025)를 올렸습니다.
+
+An interactive map of South Korea's goods trade: arrows from Korea to its top partners, sized by value, for 2015–2025 (UN Comtrade).
+
+## 기능 · Features
+
+- **상위 N개국 화살표**: 한국에서 상위 5–20개 상대국으로 화살표를 한꺼번에 그립니다. 굵기는 금액, 화살표 위를 지나가는 아이콘은 그 나라와의 1위 품목(HS 2단위)입니다.
+- **보기 4가지**: 수출(파랑, 한국 → 상대국), 수입(주황, 상대국 → 한국), 무역수지(흑자 파랑 / 적자 주황, 순흐름 방향), 교역총액(양방향).
+- **나라 클릭**: 지도가 한국과 그 나라로 확대되고 수출·수입 화살표 두 개, 숫자 카드, 추이 차트, 주요 품목이 그 나라 기준으로 바뀝니다.
+- **품목 필터**: 전체 품목, 반도체(8542), 승용차(8703), 선박(8901), 축전지(8507), 석유제품(2710), 원유(2709), 희토류 화합물(2846), 라면 등 면류(1902.30).
+- **연도 슬라이더와 재생**: 2015년부터 2025년까지 화살표와 색이 해마다 바뀝니다. 굵기와 색의 기준은 전체 기간 최댓값으로 고정해서 성장과 감소가 그대로 보입니다.
+- **🌏 아시아 확대**: 상위 상대국이 몰려 있는 동아시아·동남아시아를 크게 봅니다.
+- **요약 문장, 숫자 카드(전년 대비), 추이 차트, 주요 품목, 상대국 순위표**
+- **링크 공유**: 보기·품목·연도·선택 국가가 주소(#view=…&product=…&year=…&country=…)에 남아서, 보고서에 링크를 넣으면 같은 화면이 열립니다.
+- 한국어 / English, 라이트·다크 모드, 모바일 화면 지원
+
+## 데이터 · Data
+
+- 출처: [UN Comtrade](https://comtradeplus.un.org) 공개 API (키 불필요), 한국이 보고한 통관 기준 연간 자료, HS 분류, 미국 달러
+- 국가별 총액과 품목별 자료는 모든 상대국, 품목 구성(HS 2단위)은 어느 해든 상위 15위에 든 상대국과 세계 전체만 받습니다.
+- 총액은 정부 발표와 거의 같습니다. 2025년 Comtrade 수출 7,090억 달러, 수입 6,316억 달러 vs 산업통상부 발표 7,097억 달러, 6,317억 달러(차이 0.1% 이내).
+- 품목은 HS 코드 기준이라 정부 발표의 품목 분류(MTI)와 범위가 다릅니다. 예: 2025년 '반도체' 수출은 산업통상부 1,734억 달러, HS 8542만 보면 1,428억 달러.
+
+데이터를 다시 받으려면:
+
+```bash
+npm run data                 # 캐시(scripts/.cache)를 쓰고 새 요청만 보냅니다
+npm run data -- --fresh      # 캐시 무시
+npm run data -- --no-chapters  # 품목 구성 단계(가장 오래 걸림)를 건너뜀
+```
+
+공개 API는 한 번에 500행, 한 기간만 주고 요청이 빠르면 거절(429)하므로 스크립트는 요청을 하나씩 보내고 재시도합니다. 처음부터 받으면 30분 정도 걸립니다.
+
+**읽을 때 주의할 점**
+
+- 수출은 최종 목적국, 수입은 원산지 기준입니다. 홍콩은 중국으로 다시 나가는 중계무역 비중이 큽니다.
+- Comtrade는 대만을 "Other Asia, nes"(490)로 표기합니다. 이 지도에서는 대만으로 표시합니다.
+- 한국 세관을 거치지 않는 해외생산·현지판매는 포함되지 않습니다.
+- 선박 수출 상대국은 선주 국가가 아니라 등록국(라이베리아, 마셜제도, 파나마 등)인 경우가 많습니다.
+
+## 실행 · Development
+
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm test         # unit tests
+npm run build    # production build in dist/
+```
+
+## 배포 · Deployment
+
+`main` 브랜치에 push하면 [GitHub Actions](.github/workflows/deploy.yml)가 테스트와 빌드를 거쳐 GitHub Pages에 배포합니다. 저장소의 **Settings → Pages → Source**를 **GitHub Actions**로 설정해 주세요.
+
+## 기술 스택 · Stack
+
+React 19, TypeScript, Vite, Tailwind CSS 4, d3-geo (Natural Earth, 태평양 중심), world-atlas 1:110m, i18n-iso-countries, Vitest
