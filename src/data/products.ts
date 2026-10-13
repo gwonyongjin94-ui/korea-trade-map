@@ -122,7 +122,7 @@ const CHAPTERS: Record<string, Chapter> = {
   '90': { icon: '🔬', ko: '광학·정밀기기', en: 'Optical & precision instruments' },
   '91': { icon: '⌚', ko: '시계', en: 'Clocks & watches' },
   '92': { icon: '🎹', ko: '악기', en: 'Musical instruments' },
-  '93': { icon: '📦', ko: '무기', en: 'Arms' },
+  '93': { icon: '🛡️', ko: '무기·탄약', en: 'Arms & ammunition' },
   '94': { icon: '🛋️', ko: '가구·조명', en: 'Furniture & lighting' },
   '95': { icon: '🧸', ko: '완구·운동용품', en: 'Toys & sports goods' },
   '96': { icon: '✏️', ko: '잡품', en: 'Misc. manufactures' },

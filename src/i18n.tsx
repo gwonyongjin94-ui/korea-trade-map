@@ -11,7 +11,35 @@ export type Lang = 'ko' | 'en'
 
 /** Short, commonly used names where the library's choice reads badly in a sentence. */
 const NAME_OVERRIDES: Record<Lang, Record<string, string>> = {
-  ko: { '620': '포르투갈', '643': '러시아', '410': '한국', '180': '콩고민주공화국', '344': '홍콩', '158': '대만', '446': '마카오', '840': '미국' },
+  // Korean names follow the foreign ministry's usage where the library's differ (e.g. 폴랜드 → 폴란드, 터키 → 튀르키예).
+  ko: {
+    '620': '포르투갈',
+    '643': '러시아',
+    '410': '한국',
+    '180': '콩고민주공화국',
+    '344': '홍콩',
+    '158': '대만',
+    '446': '마카오',
+    '840': '미국',
+    '784': '아랍에미리트',
+    '598': '파푸아뉴기니',
+    '292': '지브롤터',
+    '196': '키프로스',
+    '788': '튀니지',
+    '792': '튀르키예',
+    '616': '폴란드',
+    '710': '남아프리카공화국',
+    '203': '체코',
+    '231': '에티오피아',
+    '694': '시에라리온',
+    '417': '키르기스스탄',
+    '584': '마셜제도',
+    '136': '케이맨제도',
+    '659': '세인트키츠네비스',
+    '296': '키리바시',
+    '010': '남극',
+    '226': '적도기니',
+  },
   en: { '826': 'United Kingdom', '410': 'South Korea', '180': 'DR Congo', '178': 'Congo', '344': 'Hong Kong', '158': 'Taiwan', '840': 'United States' },
 }
 
@@ -110,6 +138,7 @@ const ko_ = {
     // Amounts end in '달러', so the object particle is always '를'.
     `${y}년 한국은 ${c}에 ${x}를 수출하고 ${m}를 수입해 ${b}의 ${surplus ? '흑자' : '적자'}를 냈습니다.`,
   source: (date: string) => `자료: UN Comtrade (한국 보고 기준, HS 분류, 연간). ${date} 수집.`,
+  theorySource: '이론 분석 추가 자료: GDP는 IMF 세계경제전망(WEO, 명목 달러), 수도 좌표는 세계은행, RCA의 세계 수출은 UN Comtrade 주요 수출국 보고 합계.',
   caveats: [
     '수출은 최종 목적국, 수입은 원산지 기준입니다. 홍콩은 중국으로 다시 나가는 중계무역 비중이 큽니다.',
     'Comtrade는 대만을 "Other Asia, nes"로 표기합니다. 이 지도에서는 대만으로 표시합니다.',
@@ -187,6 +216,7 @@ const en_: Strings = {
   pair: (y, c, x, m, b, surplus) =>
     `In ${y}, Korea exported ${x} to ${c} and imported ${m}, a ${surplus ? 'surplus' : 'deficit'} of ${b}.`,
   source: (date) => `Source: UN Comtrade (as reported by Korea, HS, annual). Retrieved ${date}.`,
+  theorySource: 'Theory tab also uses IMF World Economic Outlook GDP (nominal USD), World Bank capital coordinates, and UN Comtrade exports of major reporters for RCA.',
   caveats: [
     'Exports are recorded by final destination, imports by origin. Much of Hong Kong’s share is re-exported to China.',
     'Comtrade lists Taiwan as "Other Asia, nes"; this map shows it as Taiwan.',

@@ -4,6 +4,7 @@ import { ControlPanel } from './components/ControlPanel'
 import { RankTable } from './components/RankTable'
 import { StatCards, type Stat } from './components/StatCards'
 import { TradeMap, type LegendSpec } from './components/TradeMap'
+import { TheoryTab } from './components/theory/TheoryTab'
 import { TrendChart } from './components/TrendChart'
 import { PRODUCTS, productById } from './data/products'
 import {
@@ -24,12 +25,15 @@ import { arrows as buildArrows, arrowScale, fills as buildFills, scales } from '
 import { money, percent } from './format'
 import { KOREA } from './geo'
 import { countryFlag, countryName, LangContext, STRINGS, type Lang } from './i18n'
+import { THEORY_TEXT } from './theoryText'
 
 const LANG_KEY = 'korea-trade-lang'
 const FIRST = YEARS[0]
 const LAST = YEARS[YEARS.length - 1]
 const VIEWS: View[] = ['export', 'import', 'balance', 'total']
 const TABLE_ROWS = 20
+
+type Tab = 'map' | 'theory'
 
 function initialLang(): Lang {
   try {
@@ -42,6 +46,7 @@ function initialLang(): Lang {
 }
 
 interface UrlState {
+  tab: Tab
   view: View
   product: string
   year: number
@@ -56,6 +61,7 @@ function readHash(): UrlState {
   const year = Number(q.get('year'))
   const country = q.get('country')
   return {
+    tab: q.get('tab') === 'theory' ? 'theory' : 'map',
     view: VIEWS.includes(view) ? view : 'export',
     product: PRODUCTS.some((p) => p.id === product) ? product : 'TOTAL',
     year: YEARS.includes(year) ? year : LAST,
@@ -66,7 +72,9 @@ function readHash(): UrlState {
 export default function App() {
   const [lang, setLang] = useState<Lang>(initialLang)
   const t = STRINGS[lang]
+  const tt = THEORY_TEXT[lang]
   const [start] = useState(readHash)
+  const [tab, setTab] = useState<Tab>(start.tab)
   const [view, setView] = useState<View>(start.view)
   const [product, setProduct] = useState(start.product)
   const [year, setYear] = useState(start.year)
@@ -87,8 +95,9 @@ export default function App() {
   useEffect(() => {
     const q = new URLSearchParams({ view, product, year: String(year) })
     if (selected) q.set('country', selected)
+    if (tab === 'theory') q.set('tab', 'theory')
     history.replaceState(null, '', `#${q}`)
-  }, [view, product, year, selected])
+  }, [tab, view, product, year, selected])
 
   // Playback: step one year at a time and stop at the last one.
   useEffect(() => {
@@ -256,86 +265,125 @@ export default function App() {
           </div>
         </header>
 
-        {summary && (
-          <p className="mb-4 rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-200" aria-live="polite">
-            <span className="mr-1">📊</span>
-            {summary}
-          </p>
-        )}
-
-        <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <section className="min-w-0 space-y-3 lg:col-start-1">
-            <TradeMap
-              arrows={mapArrows}
-              fills={mapFills}
-              scaleMax={arrowScale(view, scale, selected !== null)}
-              selected={selected}
-              legend={legend}
-              onPick={setSelected}
-              describe={describe}
-            />
-            <p className="text-center text-xs text-slate-500 dark:text-slate-400">{t.mapHint}</p>
-          </section>
-
-          <aside className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start dark:border-slate-800 dark:bg-slate-900">
-            <ControlPanel
-              view={view}
-              product={product}
-              year={year}
-              years={YEARS}
-              playing={playing}
-              count={count}
-              onView={setView}
-              onProduct={setProduct}
-              onYear={(y) => {
+        <nav className="mb-5 flex gap-1 border-b border-slate-200 dark:border-slate-800" aria-label="tabs">
+          {(['map', 'theory'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => {
                 setPlaying(false)
-                setYear(y)
+                setTab(k)
               }}
-              onPlay={togglePlay}
-              onCount={setCount}
-            />
-          </aside>
-
-          {/* After the controls on phones, under the map on wide screens. */}
-          <div className="min-w-0 lg:col-start-1">
-            <StatCards stats={statCards} />
-          </div>
-        </div>
-
-        <main className="mt-8 space-y-6">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <TrendChart
-              title={`${prefix}${t.trend(scope)}`}
-              data={series(product, selected ?? WORLD)}
-              year={year}
-              onYear={(y) => {
-                setPlaying(false)
-                setYear(y)
-              }}
-            />
-            <ChapterBars
-              title={`${t.topChapters(scope)} · ${year}`}
-              lists={{ X: chapterList('X', year, selected ?? WORLD), M: chapterList('M', year, selected ?? WORLD) }}
-              notice={
-                product === 'TOTAL'
-                  ? undefined
-                  : { text: t.chaptersOnlyTotal, action: { label: t.showAllProducts, onClick: () => setProduct('TOTAL') } }
+              aria-current={tab === k ? 'page' : undefined}
+              className={
+                '-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold transition ' +
+                (tab === k
+                  ? 'border-slate-900 text-slate-900 dark:border-white dark:text-white'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200')
               }
-            />
+            >
+              {tt.tabs[k]}
+            </button>
+          ))}
+        </nav>
+
+        {tab === 'theory' ? (
+          <TheoryTab
+            view={view}
+            product={product}
+            year={year}
+            years={YEARS}
+            selected={selected}
+            onView={setView}
+            onProduct={setProduct}
+            onYear={setYear}
+            onPick={setSelected}
+          />
+        ) : (
+          <>
+          {summary && (
+            <p className="mb-4 rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-200" aria-live="polite">
+              <span className="mr-1">📊</span>
+              {summary}
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <section className="min-w-0 space-y-3 lg:col-start-1">
+              <TradeMap
+                arrows={mapArrows}
+                fills={mapFills}
+                scaleMax={arrowScale(view, scale, selected !== null)}
+                selected={selected}
+                legend={legend}
+                onPick={setSelected}
+                describe={describe}
+              />
+              <p className="text-center text-xs text-slate-500 dark:text-slate-400">{t.mapHint}</p>
+            </section>
+
+            <aside className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start dark:border-slate-800 dark:bg-slate-900">
+              <ControlPanel
+                view={view}
+                product={product}
+                year={year}
+                years={YEARS}
+                playing={playing}
+                count={count}
+                onView={setView}
+                onProduct={setProduct}
+                onYear={(y) => {
+                  setPlaying(false)
+                  setYear(y)
+                }}
+                onPlay={togglePlay}
+                onCount={setCount}
+              />
+            </aside>
+
+            {/* After the controls on phones, under the map on wide screens. */}
+            <div className="min-w-0 lg:col-start-1">
+              <StatCards stats={statCards} />
+            </div>
           </div>
 
-          <RankTable
-            title={`${t.ranking(t.views[view], productLabel)} · ${year}`}
-            rows={list.slice(0, TABLE_ROWS)}
-            view={view}
-            base={base}
-            selected={selected}
-            onPick={(iso) => setSelected(iso === selected ? null : iso)}
-          />
-        </main>
+          <main className="mt-8 space-y-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <TrendChart
+                title={`${prefix}${t.trend(scope)}`}
+                data={series(product, selected ?? WORLD)}
+                year={year}
+                onYear={(y) => {
+                  setPlaying(false)
+                  setYear(y)
+                }}
+              />
+              <ChapterBars
+                title={`${t.topChapters(scope)} · ${year}`}
+                lists={{ X: chapterList('X', year, selected ?? WORLD), M: chapterList('M', year, selected ?? WORLD) }}
+                notice={
+                  product === 'TOTAL'
+                    ? undefined
+                    : { text: t.chaptersOnlyTotal, action: { label: t.showAllProducts, onClick: () => setProduct('TOTAL') } }
+                }
+              />
+            </div>
+
+            <RankTable
+              title={`${t.ranking(t.views[view], productLabel)} · ${year}`}
+              rows={list.slice(0, TABLE_ROWS)}
+              view={view}
+              base={base}
+              selected={selected}
+              onPick={(iso) => setSelected(iso === selected ? null : iso)}
+            />
+          </main>
+          </>
+        )}
 
         <footer className="mt-10 space-y-2 border-t border-slate-200 pt-6 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
           <p>{t.source(DATA.meta.fetched)}</p>
+          {tab === 'theory' && <p>{t.theorySource}</p>}
           <ul className="list-disc space-y-1 pl-4">
             {t.caveats.map((c) => (
               <li key={c}>{c}</li>

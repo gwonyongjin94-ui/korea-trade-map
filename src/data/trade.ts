@@ -13,6 +13,14 @@ export interface TradeData {
   partners: Record<string, Partial<Record<Flow, Record<string, ByIso>>>>
   /** flow → year → partner → [[HS chapter, value], …] largest first, "other" last */
   chapters: Record<Flow, Record<string, Record<string, [string, number][]>>>
+  /** Grubel–Lloyd index by year and partner, and Korea–world [chapter, exports, imports] by year. */
+  iit?: { partners: Record<string, Record<string, number>>; chapters: Record<string, [string, number, number][]> } | null
+  /** Balassa RCA by year and HS code: [RCA, Korea's share of the reporters' exports]. */
+  rca?: { reporters: number; years: number[]; byYear: Record<string, Record<string, [number, number]>>; share: Record<string, number> } | null
+  /** GDP in USD billions by year and partner. */
+  gdp?: Record<string, Record<string, number>>
+  /** Capital city [longitude, latitude] by partner. */
+  capitals?: Record<string, [number, number]>
 }
 
 export const DATA = raw as unknown as TradeData

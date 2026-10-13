@@ -95,6 +95,14 @@ const ANCHOR_OVERRIDES: Record<string, [number, number]> = {
   '528': [5.3, 52.2], // Netherlands
 }
 
+/** Geographic [longitude, latitude] of a place's anchor, or null when it isn't on the map. */
+export function lonLat(id: string): [number, number] | null {
+  const fixed = ANCHOR_OVERRIDES[id] ?? SMALL_PLACES[id]
+  if (fixed) return fixed
+  const f = byId.get(id)
+  return f ? (geoCentroid(mainPolygon(f)) as [number, number]) : null
+}
+
 /** Projected point used for arrows and markers, or null when the place can't be drawn. */
 export function anchor(id: string): [number, number] | null {
   const lonLat = ANCHOR_OVERRIDES[id] ?? SMALL_PLACES[id]

@@ -1,5 +1,7 @@
 // Downloads Korea's annual goods trade by partner country from the UN Comtrade public API (no key needed)
-// and writes the compact dataset the app imports: src/data/trade.json.
+// and writes the compact dataset the app imports: src/data/trade.json. For the theory tab it also
+// fetches GDP (IMF World Economic Outlook) and capital coordinates (World Bank), derives the
+// Grubel–Lloyd index from the chapter breakdown, and computes Balassa RCA against major exporters.
 //
 //   npm run data            # uses cached responses where available
 //   npm run data -- --fresh # ignores the cache
@@ -14,6 +16,8 @@ import countries from 'i18n-iso-countries'
 
 const BASE = 'https://comtradeapi.un.org/public/v1/preview/C/A/HS'
 const PARTNERS_URL = 'https://comtradeapi.un.org/files/v1/app/reference/partnerAreas.json'
+const GDP_URL = 'https://www.imf.org/external/datamapper/api/v1/NGDPD'
+const COUNTRIES_URL = 'https://api.worldbank.org/v2/country?format=json&per_page=400'
 const KOREA = 410
 const YEARS = Array.from({ length: 11 }, (_, i) => 2015 + i)
 const FLOWS = ['X', 'M']
@@ -28,6 +32,17 @@ const PRODUCT_GROUPS = [
 const TOP_FOR_CHAPTERS = 15
 /** Chapters kept per partner, year and flow; the rest are summed into "other". */
 const CHAPTERS_KEPT = 8
+/**
+ * Candidate exporters whose summed exports stand in for "the world" in RCA. Only those reporting in
+ * every RCA year are used, so the denominator covers the same countries each year.
+ */
+const RCA_REPORTERS = [
+  156, 842, 276, 528, 392, 380, 251, 410, 344, 484, 124, 56, 826, 702, 490, 699, 757, 724, 784, 704, 36, 616,
+  458, 764, 76, 360, 682, 372, 203, 40, 752, 792, 579, 634, 208, 608, 348, 703, 152, 710, 376, 398, 246, 620,
+  642, 32, 604, 414, 512, 554, 170, 804, 818, 504, 705, 300, 442, 440, 643, 364, 368, 566, 12, 862, 586,
+]
+/** Korea's largest export chapters in any year, this many per year, get an RCA. */
+const RCA_TOP_CHAPTERS = 20
 const ROW_CAP = 500
 const PAUSE_MS = 1200
 const CACHE = new URL('./.cache/', import.meta.url)
@@ -78,8 +93,8 @@ async function getJson(url) {
 }
 
 /** Rows for one year and flow. Splits the request if the row cap may have cut it short. */
-async function rows({ year, flow, cmd, partners }) {
-  const q = new URLSearchParams({ reporterCode: String(KOREA), period: String(year), flowCode: flow, cmdCode: cmd.join(',') })
+async function rows({ year, flow, cmd, partners, reporters = [KOREA] }) {
+  const q = new URLSearchParams({ reporterCode: reporters.join(','), period: String(year), flowCode: flow, cmdCode: cmd.join(',') })
   if (partners) q.set('partnerCode', partners.join(','))
   const body = await getJson(`${BASE}?${q}`)
   const data = body.data ?? []
@@ -88,8 +103,8 @@ async function rows({ year, flow, cmd, partners }) {
     if (list.length < 2) throw new Error(`Row cap hit for a single query: ${q}`)
     const mid = Math.ceil(list.length / 2)
     return [
-      ...(await rows({ year, flow, cmd, partners, [key]: list.slice(0, mid) })),
-      ...(await rows({ year, flow, cmd, partners, [key]: list.slice(mid) })),
+      ...(await rows({ year, flow, cmd, partners, reporters, [key]: list.slice(0, mid) })),
+      ...(await rows({ year, flow, cmd, partners, reporters, [key]: list.slice(mid) })),
     ]
   }
   // Keep the plain totals: all customs procedures, all transport modes, no second partner.
@@ -110,6 +125,7 @@ async function partnerMap() {
 }
 
 const millions = (v) => Math.round(v / 1e5) / 10
+const round = (v, digits) => Math.round(v * 10 ** digits) / 10 ** digits
 
 async function main() {
   await mkdir(CACHE, { recursive: true })
@@ -162,6 +178,8 @@ async function main() {
 
   /** flow → year → iso → [[hs2, USD millions], ...] sorted, with "other" last. */
   const chapters = { X: {}, M: {} }
+  /** flow → year → iso → Map(hs2 → USD), every chapter, for the indices that need the full breakdown. */
+  const full = { X: {}, M: {} }
   for (const year of skipChapters ? [] : YEARS) {
     for (const flow of FLOWS) {
       const sums = {}
@@ -170,6 +188,7 @@ async function main() {
           const iso = r.partnerCode === 0 ? '000' : isoOf.get(r.partnerCode)
           if (!iso) continue
           ;(sums[iso] ??= []).push([r.cmdCode, r.primaryValue])
+          ;((full[flow][year] ??= {})[iso] ??= new Map()).set(r.cmdCode, r.primaryValue)
         }
       }
       for (const [iso, list] of Object.entries(sums)) {
@@ -183,6 +202,10 @@ async function main() {
     }
   }
 
+  const iit = skipChapters ? null : grubelLloyd(full)
+  const rca = skipChapters ? null : await balassa(full)
+  const { gdp, capitals } = await gravityInputs(byPartner)
+
   const out = {
     meta: {
       source: 'UN Comtrade, reporter: Republic of Korea, HS, annual, customs value in USD',
@@ -192,12 +215,126 @@ async function main() {
     },
     partners: byPartner,
     chapters,
+    iit,
+    rca,
+    gdp,
+    capitals,
   }
   await mkdir(new URL('.', OUT), { recursive: true })
   await writeFile(OUT, JSON.stringify(out))
   const unmappedTotal = [...unmapped.values()].reduce((a, b) => a + b, 0)
   console.log(`Wrote ${OUT.pathname} after ${calls} API calls. Unmapped partner value (all years, flows, products): ${millions(unmappedTotal)}M USD`)
   console.log('Unmapped codes:', [...unmapped.keys()].join(', '))
+}
+
+/**
+ * Grubel–Lloyd index of intra-industry trade, GL = Σ(X + M − |X − M|) / Σ(X + M) over HS chapters,
+ * for each partner with a chapter breakdown, plus Korea–world exports and imports by chapter.
+ */
+function grubelLloyd(full) {
+  const iit = { partners: {}, chapters: {} }
+  for (const year of YEARS) {
+    const X = full.X[year] ?? {}
+    const M = full.M[year] ?? {}
+    for (const iso of new Set([...Object.keys(X), ...Object.keys(M)])) {
+      let overlap = 0
+      let total = 0
+      for (const c of new Set([...(X[iso]?.keys() ?? []), ...(M[iso]?.keys() ?? [])])) {
+        const x = X[iso]?.get(c) ?? 0
+        const m = M[iso]?.get(c) ?? 0
+        total += x + m
+        overlap += x + m - Math.abs(x - m)
+      }
+      if (total > 0) (iit.partners[year] ??= {})[iso] = round(overlap / total, 3)
+    }
+    const wx = X['000'] ?? new Map()
+    const wm = M['000'] ?? new Map()
+    iit.chapters[year] = [...new Set([...wx.keys(), ...wm.keys()])]
+      .map((c) => [c, millions(wx.get(c) ?? 0), millions(wm.get(c) ?? 0)])
+      .sort((a, b) => b[1] + b[2] - (a[1] + a[2]))
+      .slice(0, 20)
+  }
+  return iit
+}
+
+/**
+ * Balassa revealed comparative advantage, RCA = (Korea's exports of k / Korea's total) ÷ (world exports
+ * of k / world total), with "world" = the exporters in RCA_REPORTERS that report in every year used.
+ * Covers Korea's top export chapters and the filter's products. Also returns Korea's share of world exports.
+ */
+async function balassa(full) {
+  const totals = {}
+  for (const year of YEARS) {
+    for (const r of await rows({ year, flow: 'X', cmd: ['TOTAL'], partners: [0], reporters: RCA_REPORTERS })) {
+      if (r.primaryValue > 0) (totals[year] ??= {})[r.reporterCode] = r.primaryValue
+    }
+    console.log(`${year}: RCA reporter totals (${Object.keys(totals[year] ?? {}).length} reporters, ${calls} calls so far)`)
+  }
+  // Reporters present in every year up to the last complete one; the latest year joins only if they all report it.
+  const base = YEARS.slice(0, -1)
+  const set = RCA_REPORTERS.filter((c) => base.every((y) => totals[y]?.[c]))
+  const last = YEARS[YEARS.length - 1]
+  const years = set.every((c) => totals[last]?.[c]) ? YEARS : base
+  const missingLast = set.filter((c) => !totals[last]?.[c])
+  console.log(`RCA: ${set.length} reporters, years ${years[0]}–${years[years.length - 1]}` + (missingLast.length ? ` (${last} missing: ${missingLast.join(', ')})` : ''))
+
+  const top = new Set()
+  for (const year of YEARS) {
+    ;[...(full.X[year]?.['000'] ?? new Map())]
+      .filter(([c]) => c !== '99')
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, RCA_TOP_CHAPTERS)
+      .forEach(([c]) => top.add(c))
+  }
+  const codes = [...top, ...PRODUCT_GROUPS.flat()]
+  const perCall = Math.max(1, Math.floor(450 / codes.length))
+
+  const out = { reporters: set.length, years, byYear: {}, share: {} }
+  for (const year of years) {
+    const world = {}
+    const korea = {}
+    for (let i = 0; i < set.length; i += perCall) {
+      for (const r of await rows({ year, flow: 'X', cmd: codes, partners: [0], reporters: set.slice(i, i + perCall) })) {
+        world[r.cmdCode] = (world[r.cmdCode] ?? 0) + r.primaryValue
+        if (r.reporterCode === KOREA) korea[r.cmdCode] = r.primaryValue
+      }
+    }
+    const worldTotal = set.reduce((s, c) => s + totals[year][c], 0)
+    const koreaTotal = totals[year][KOREA]
+    out.share[year] = round(koreaTotal / worldTotal, 4)
+    out.byYear[year] = Object.fromEntries(
+      codes
+        .filter((c) => world[c] > 0)
+        .map((c) => [c, [round((korea[c] ?? 0) / koreaTotal / (world[c] / worldTotal), 2), round((korea[c] ?? 0) / world[c], 4)]]),
+    )
+    console.log(`${year}: RCA for ${codes.length} codes (${calls} calls so far)`)
+  }
+  return out
+}
+
+/** GDP in USD billions (IMF WEO) by year and partner, and capital [lon, lat] (World Bank) for distances. */
+async function gravityInputs(byPartner) {
+  const wanted = new Set(['410'])
+  for (const flows of Object.values(byPartner)) for (const years of Object.values(flows)) for (const by of Object.values(years)) for (const iso of Object.keys(by)) wanted.add(iso)
+
+  const imf = (await getJson(GDP_URL)).values.NGDPD
+  const gdp = {}
+  for (const [alpha3, series] of Object.entries(imf)) {
+    const iso = countries.alpha3ToNumeric(alpha3)
+    if (!iso || !wanted.has(iso)) continue
+    for (const year of YEARS) if (series[year] > 0) (gdp[year] ??= {})[iso] = round(series[year], 1)
+  }
+
+  const [, list] = await getJson(COUNTRIES_URL)
+  // Taipei: Taiwan is not in the World Bank's country list.
+  const capitals = { '158': [121.56, 25.03] }
+  for (const c of list) {
+    const iso = countries.alpha3ToNumeric(c.id)
+    if (!iso || !wanted.has(iso) || !c.latitude) continue
+    capitals[iso] = [round(Number(c.longitude), 2), round(Number(c.latitude), 2)]
+  }
+  console.log(`GDP for ${Object.keys(gdp[YEARS[YEARS.length - 1]] ?? {}).length} partners, capitals for ${Object.keys(capitals).length}`)
+  return { gdp, capitals }
 }
 
 main().catch((e) => {
