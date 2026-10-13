@@ -251,8 +251,8 @@ function grubelLloyd(full) {
     const wm = M['000'] ?? new Map()
     iit.chapters[year] = [...new Set([...wx.keys(), ...wm.keys()])]
       .map((c) => [c, millions(wx.get(c) ?? 0), millions(wm.get(c) ?? 0)])
+      // Every chapter, largest trade first: the theory tab shows the top rows, the specific factors tab groups them by sector.
       .sort((a, b) => b[1] + b[2] - (a[1] + a[2]))
-      .slice(0, 20)
   }
   return iit
 }

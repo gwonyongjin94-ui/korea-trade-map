@@ -5,6 +5,7 @@ import { RankTable } from './components/RankTable'
 import { StatCards, type Stat } from './components/StatCards'
 import { TradeMap, type LegendSpec } from './components/TradeMap'
 import { RicardoTab } from './components/RicardoTab'
+import { SpecificFactorsTab } from './components/sf/SpecificFactorsTab'
 import { TheoryTab } from './components/theory/TheoryTab'
 import { TrendChart } from './components/TrendChart'
 import { PRODUCTS, productById } from './data/products'
@@ -26,6 +27,7 @@ import { arrows as buildArrows, arrowScale, fills as buildFills, scales } from '
 import { money, percent } from './format'
 import { KOREA } from './geo'
 import { countryFlag, countryName, LangContext, STRINGS, type Lang } from './i18n'
+import { SF_TEXT } from './sfText'
 import { THEORY_TEXT } from './theoryText'
 
 const LANG_KEY = 'korea-trade-lang'
@@ -34,8 +36,8 @@ const LAST = YEARS[YEARS.length - 1]
 const VIEWS: View[] = ['export', 'import', 'balance', 'total']
 const TABLE_ROWS = 20
 
-type Tab = 'map' | 'theory' | 'ricardo'
-const TABS: Tab[] = ['map', 'theory', 'ricardo']
+type Tab = 'map' | 'theory' | 'ricardo' | 'sf'
+const TABS: Tab[] = ['map', 'theory', 'ricardo', 'sf']
 
 function initialLang(): Lang {
   try {
@@ -284,12 +286,14 @@ export default function App() {
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200')
               }
             >
-              {tt.tabs[k]}
+              {k === 'sf' ? SF_TEXT[lang].tab : tt.tabs[k]}
             </button>
           ))}
         </nav>
 
-        {tab === 'ricardo' ? (
+        {tab === 'sf' ? (
+          <SpecificFactorsTab year={year} />
+        ) : tab === 'ricardo' ? (
           <RicardoTab />
         ) : tab === 'theory' ? (
           <TheoryTab
