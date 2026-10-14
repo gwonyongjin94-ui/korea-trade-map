@@ -17,6 +17,10 @@ export interface TradeData {
   iit?: { partners: Record<string, Record<string, number>>; chapters: Record<string, [string, number, number][]> } | null
   /** Balassa RCA by year and HS code: [RCA, Korea's share of the reporters' exports]. */
   rca?: { reporters: number; years: number[]; byYear: Record<string, Record<string, [number, number]>>; share: Record<string, number> } | null
+  /** Farm goods (HS 01–24) and other goods: flow → year → partner → [farm, other], USD millions. */
+  sectors?: Record<Flow, Record<string, Record<string, [number, number]>>> | null
+  /** World Bank series: indicator → partner → year → value. */
+  wb?: Partial<Record<'agriVa' | 'indVa' | 'arable' | 'agriEmp', Record<string, Record<string, number>>>>
   /** GDP in USD billions by year and partner. */
   gdp?: Record<string, Record<string, number>>
   /** Capital city [longitude, latitude] by partner. */

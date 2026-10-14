@@ -292,9 +292,9 @@ export default function App() {
         </nav>
 
         {tab === 'sf' ? (
-          <SpecificFactorsTab year={year} />
+          <SpecificFactorsTab year={year} onYear={setYear} />
         ) : tab === 'ricardo' ? (
-          <RicardoTab />
+          <RicardoTab year={year} />
         ) : tab === 'theory' ? (
           <TheoryTab
             view={view}

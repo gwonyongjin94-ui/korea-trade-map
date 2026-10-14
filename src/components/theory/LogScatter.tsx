@@ -18,6 +18,8 @@ interface Props {
   formatY: (v: number) => string
   /** A line in data space, drawn as straight on the log–log axes. */
   line?: { from: [number, number]; to: [number, number]; label: string }
+  /** Vertical reference lines, e.g. where Korea itself sits on the x axis. */
+  marks?: { x: number; label: string }[]
   selected: string | null
   onPick: (iso: string) => void
   tooltip: (iso: string) => { title: string; lines: string[] }
@@ -40,9 +42,9 @@ function logTicks(lo: number, hi: number): number[] {
   return out
 }
 
-export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, selected, onPick, tooltip }: Props) {
+export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, marks = [], selected, onPick, tooltip }: Props) {
   const [hover, setHover] = useState<{ iso: string; x: number; y: number } | null>(null)
-  const xs = points.map((p) => p.x).concat(line ? [line.from[0], line.to[0]] : [])
+  const xs = points.map((p) => p.x).concat(line ? [line.from[0], line.to[0]] : [], marks.map((m) => m.x))
   const ys = points.map((p) => p.y).concat(line ? [line.from[1], line.to[1]] : [])
   const pad = (lo: number, hi: number): [number, number] => [lo / 1.6, hi * 1.6]
   const [x0, x1] = pad(Math.min(...xs), Math.max(...xs))
@@ -103,6 +105,15 @@ export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, sel
             className="stroke-slate-500 dark:stroke-slate-400"
           />
         )}
+
+        {marks.map((m) => (
+          <g key={m.label}>
+            <line x1={sx(m.x)} x2={sx(m.x)} y1={M.top} y2={H - M.bottom} strokeWidth={1.5} strokeDasharray="2 3" className="stroke-slate-900 dark:stroke-white" />
+            <text x={sx(m.x) + 4} y={M.top + 10} className="fill-slate-700 text-[11px] font-semibold dark:fill-slate-200">
+              {m.label}
+            </text>
+          </g>
+        ))}
 
         {points.map((p) => (
           <circle

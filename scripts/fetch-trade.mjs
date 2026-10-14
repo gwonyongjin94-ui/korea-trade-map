@@ -18,6 +18,13 @@ const BASE = 'https://comtradeapi.un.org/public/v1/preview/C/A/HS'
 const PARTNERS_URL = 'https://comtradeapi.un.org/files/v1/app/reference/partnerAreas.json'
 const GDP_URL = 'https://www.imf.org/external/datamapper/api/v1/NGDPD'
 const COUNTRIES_URL = 'https://api.worldbank.org/v2/country?format=json&per_page=400'
+/** World Bank indicators for the models' real-data examples. */
+const WB_INDICATORS = {
+  agriVa: 'NV.AGR.EMPL.KD', // agriculture, forestry and fishing value added per worker, constant 2015 USD
+  indVa: 'NV.IND.EMPL.KD', // industry (incl. construction) value added per worker, constant 2015 USD
+  arable: 'AG.LND.ARBL.HA.PC', // arable land, hectares per person
+  agriEmp: 'SL.AGR.EMPL.ZS', // employment in agriculture, % of total (modelled ILO estimate)
+}
 const KOREA = 410
 const YEARS = Array.from({ length: 11 }, (_, i) => 2015 + i)
 const FLOWS = ['X', 'M']
@@ -203,8 +210,10 @@ async function main() {
   }
 
   const iit = skipChapters ? null : grubelLloyd(full)
+  const sectors = skipChapters ? null : farmAndIndustry(full)
   const rca = skipChapters ? null : await balassa(full)
   const { gdp, capitals } = await gravityInputs(byPartner)
+  const wb = await worldBank(new Set(['410', ...Object.keys(full.X[YEARS[YEARS.length - 1]] ?? {})]))
 
   const out = {
     meta: {
@@ -216,6 +225,8 @@ async function main() {
     partners: byPartner,
     chapters,
     iit,
+    sectors,
+    wb,
     rca,
     gdp,
     capitals,
@@ -255,6 +266,43 @@ function grubelLloyd(full) {
       .sort((a, b) => b[1] + b[2] - (a[1] + a[2]))
   }
   return iit
+}
+
+/**
+ * Farm goods (HS 01–24) and everything else (25–99) by flow, year and partner, for the Ricardian and
+ * specific factors examples: flow → year → iso → [farm, other] in USD millions.
+ */
+function farmAndIndustry(full) {
+  const out = { X: {}, M: {} }
+  for (const flow of FLOWS) {
+    for (const [year, byIso] of Object.entries(full[flow])) {
+      for (const [iso, chapters] of Object.entries(byIso)) {
+        let farm = 0
+        let other = 0
+        for (const [code, v] of chapters) {
+          if (Number(code) <= 24) farm += v
+          else other += v
+        }
+        ;(out[flow][year] ??= {})[iso] = [millions(farm), millions(other)]
+      }
+    }
+  }
+  return out
+}
+
+/** World Bank series for the given partners: indicator → iso → year → value. */
+async function worldBank(isos) {
+  const out = {}
+  for (const [key, code] of Object.entries(WB_INDICATORS)) {
+    const [, rows] = await getJson(`https://api.worldbank.org/v2/country/all/indicator/${code}?format=json&date=${YEARS[0]}:${YEARS[YEARS.length - 1]}&per_page=20000`)
+    for (const r of rows ?? []) {
+      const iso = r.countryiso3code && countries.alpha3ToNumeric(r.countryiso3code)
+      if (!iso || !isos.has(iso) || r.value === null) continue
+      ;((out[key] ??= {})[iso] ??= {})[r.date] = round(r.value, 3)
+    }
+  }
+  console.log(`World Bank series for ${Object.keys(out.agriVa ?? {}).length} partners`)
+  return out
 }
 
 /**

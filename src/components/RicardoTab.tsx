@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useI18n } from '../i18n'
 import { THEORY_TEXT } from '../theoryText'
+import { RicardoRealCard } from './RicardoRealCard'
 
 export const RICARDO_URL = 'https://gwonyongjin94-ui.github.io/ricardian-model/'
 
@@ -8,7 +9,7 @@ export const RICARDO_URL = 'https://gwonyongjin94-ui.github.io/ricardian-model/'
  * The Ricardian model explorer, embedded rather than linked. Its learn-mode guide is pinned to the bottom
  * of its own viewport, so the frame gets a screen-high box and scrolls inside instead of growing to fit.
  */
-export function RicardoTab() {
+export function RicardoTab({ year }: { year: number }) {
   const { lang } = useI18n()
   const r = THEORY_TEXT[lang].ricardo
   // On GitHub Pages both apps share an origin, so the explorer can start in the same language as this page.
@@ -21,7 +22,8 @@ export function RicardoTab() {
     }
   }, [lang])
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
+      <RicardoRealCard year={year} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
           <h2 className="text-lg font-bold">{r.title}</h2>

@@ -32,6 +32,7 @@ const ko = {
   before: '자급자족',
   after: '무역 후',
   wage: '임금',
+  wageUnit: '세로축: 임금과 노동의 한계생산가치 (식량 단위, P_F = 1)',
   employed: (g: string) => `${g} 고용`,
   ppfChart: '생산가능곡선과 무역의 이익',
   ppfLegend: { autarky: '① 자급자족 (생산 = 소비)', production: '② 무역 후 생산', consumption: '③ 무역 후 소비', budget: '예산선 (기울기 = −세계 상대가격)' },
@@ -72,7 +73,7 @@ const ko = {
     },
     {
       title: '⑤ 그래서 무역은 정치적으로 다툼이 된다',
-      body: `손해를 보는 쪽(수입경쟁 산업에 묶인 ${v.loser})은 적은 수에 손실이 집중되어 조직적으로 보호를 요구하기 쉽고, 이득은 많은 사람에게 조금씩 퍼집니다. 특정성은 시간의 문제이기도 해서, 장기에는 자본도 산업 사이를 옮겨 갈 수 있고 그때는 헥셔–올린 모형(5장)이 더 맞습니다.`,
+      body: `손해를 보는 쪽(수입경쟁 산업에 묶인 ${v.loser})은 특정 산업·지역에 몰려 있어 조직적으로 보호를 요구하기 쉽고, 이득은 많은 사람에게 조금씩 퍼집니다. 그래도 경제학자 대부분은 무역을 막기보다 무역을 허용하고 손해 보는 사람을 실업급여·재교육 같은 안전망으로 보상하는 편이 낫다고 봅니다. 특정성은 시간의 문제이기도 해서, 장기에는 자본도 산업 사이를 옮겨 갈 수 있고 그때는 헥셔–올린 모형(5장)이 더 맞습니다.`,
       formula: '',
     },
   ],
@@ -96,6 +97,28 @@ const ko = {
       transport: '수송기기 (자동차·선박)',
       other: '정밀기기·기타',
     },
+  },
+  land: {
+    title: '📊 실제 데이터로 보기: 땅이 많은 나라가 한국에 농산물을 판다',
+    body: '특정요소 모형에서 토지는 농업에만 쓰이는 특정요소입니다. 토지가 풍부한 나라는 자급자족 때 식량이 싸서, 무역을 하면 식량을 수출합니다. 한국의 상대국 자료로 확인해 봅니다.',
+    x: '1인당 경지 면적 (ha, 세계은행)',
+    y: '한국이 그 나라에서 사는 물건 중 농산물(HS 01–24) 비중',
+    supplier: '한국에 농산물을 상대적으로 더 파는 나라',
+    buyer: '한국에서 농산물을 상대적으로 더 사는 나라',
+    korea: (v: string) => `한국 ${v}ha`,
+    line: '회귀선',
+    stats: { slope: '탄력성', r: '상관계수 r', n: '국가 수' },
+    sig: (se: string, sig: boolean) => `표준오차 ${se}${sig ? ' · 5% 유의' : ' · 유의하지 않음'}`,
+    reading: (b: string, r: string, top: string, k: string) =>
+      `1인당 경지 면적이 1% 넓은 나라일수록, 한국이 그 나라에서 사는 물건 중 농산물 비중이 약 ${b}% 높습니다 (r = ${r}). 땅이 많은 ${top} 같은 나라가 한국의 농산물 공급국입니다. 특정요소 모형으로 읽으면, 무역은 이런 나라에서 식량의 상대가격을 올려 토지 소유자에게 이득을 주고, 1인당 경지가 ${k}ha로 아주 적은 한국에서는 농산물 가격을 낮춰 농지 소유자에게 손해를 줍니다.`,
+    tooltip: (land: string, share: string) => [`1인당 경지 ${land}ha`, `농산물 비중 ${share}`],
+    trendTitle: '한국 농산물(HS 01–24) 교역 추이',
+    trendReading: (y0: number, m0: string, y1: number, m1: string, g: string, e0: string, e1: string) =>
+      `농산물 수입은 ${y0}년 ${m0}에서 ${y1}년 ${m1}로 ${g} 늘었습니다. 같은 기간 농업 고용 비중은 ${e0}에서 ${e1}로 거의 그대로였습니다(세계은행·ILO 추정). 모형에서 노동은 상대가격이 바뀔 때 움직이므로, 수입이 늘었다는 것만으로 노동 이동을 확인할 수는 없습니다.`,
+    cautions: [
+      '농산물 수입이 0인 나라(카타르·쿠웨이트·이라크 등)는 로그를 쓸 수 없어 빠졌고, 대만은 세계은행 자료가 없습니다.',
+      '1인당 경지 면적은 농업 종사자 1인당 토지가 아니며, 기후·거리·FTA·식품가공 산업 같은 다른 요인도 작용합니다. 상관관계이지 인과관계가 아닙니다.',
+    ],
   },
   migration: {
     title: '🌏 국제 노동이동',
@@ -138,6 +161,7 @@ const en: SfText = {
   before: 'Autarky',
   after: 'With trade',
   wage: 'Wage',
+  wageUnit: 'Vertical axis: wage and value of marginal product (in units of food, P_F = 1)',
   employed: (g) => `${g} employment`,
   ppfChart: 'Production possibilities and the gains from trade',
   ppfLegend: { autarky: '① Autarky (production = consumption)', production: '② Production with trade', consumption: '③ Consumption with trade', budget: 'Budget line (slope = −world relative price)' },
@@ -178,7 +202,7 @@ const en: SfText = {
     },
     {
       title: '⑤ Which is why trade is politically contested',
-      body: `The losers (${v.loser}, tied to the import-competing sector) are few with concentrated losses, so they organise for protection, while gains are spread thinly. Specificity is also a matter of time: in the long run capital can move between industries, and the Heckscher–Ohlin model (ch. 5) fits better.`,
+      body: `The losers (${v.loser}, tied to the import-competing sector) are concentrated in particular industries and regions, so they organise for protection, while gains are spread thinly. Most economists still argue it is better to allow trade and compensate those who lose through a safety net (unemployment benefits, retraining) than to restrict it. Specificity is also a matter of time: in the long run capital can move between industries, and the Heckscher–Ohlin model (ch. 5) fits better.`,
       formula: '',
     },
   ],
@@ -202,6 +226,28 @@ const en: SfText = {
       transport: 'Transport equipment (cars, ships)',
       other: 'Instruments & other',
     },
+  },
+  land: {
+    title: '📊 Real data: land-rich countries sell Korea farm goods',
+    body: 'In the specific factors model, land is the factor specific to farming. A land-rich country has cheap food in autarky, so with trade it exports food. Here is the check against Korea’s partners.',
+    x: 'Arable land per person (ha, World Bank)',
+    y: 'Farm goods (HS 01–24) in what Korea buys from the country',
+    supplier: 'Sells Korea relatively more farm goods',
+    buyer: 'Buys relatively more farm goods from Korea',
+    korea: (v) => `Korea ${v} ha`,
+    line: 'Fitted line',
+    stats: { slope: 'Elasticity', r: 'Correlation r', n: 'Countries' },
+    sig: (se, sig) => `s.e. ${se}${sig ? ' · significant at 5%' : ' · not significant'}`,
+    reading: (b, r, top, k) =>
+      `A country with 1% more arable land per person has a farm share of Korea's imports from it about ${b}% higher (r = ${r}). Land-rich countries such as ${top} are Korea's farm suppliers. Read through the specific factors model, trade raises the relative price of food there, helping landowners, and lowers it in Korea, with only ${k} ha of arable land per person, hurting owners of farmland.`,
+    tooltip: (land, share) => [`Arable land ${land} ha per person`, `Farm share ${share}`],
+    trendTitle: 'Korea’s trade in farm goods (HS 01–24)',
+    trendReading: (y0, m0, y1, m1, g, e0, e1) =>
+      `Farm imports rose ${g}, from ${m0} in ${y0} to ${m1} in ${y1}. Agriculture's share of employment barely moved, from ${e0} to ${e1} (World Bank/ILO estimate). In the model labor moves when relative prices change, so rising imports alone do not show labor moving.`,
+    cautions: [
+      'Countries with no farm imports (Qatar, Kuwait, Iraq and others) drop out of the log scale, and Taiwan has no World Bank data.',
+      'Arable land per person is not land per farm worker, and climate, distance, FTAs and food processing matter too. This is correlation, not causation.',
+    ],
   },
   migration: {
     title: '🌏 International labor mobility',

@@ -4,12 +4,13 @@ import { atPrice, autarkyPrice, distribution, utilityAt, withTrade, type Economy
 import { useI18n } from '../../i18n'
 import { SF_TEXT, type Names } from '../../sfText'
 import { KoreaCard } from './KoreaCard'
+import { LandCard } from './LandCard'
 import { MigrationCard } from './MigrationCard'
 import { LaborChart, PpfChart, PpfLegend } from './SfCharts'
 
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`
 
-export function SpecificFactorsTab({ year }: { year: number }) {
+export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y: number) => void }) {
   const { lang } = useI18n()
   const s = SF_TEXT[lang]
   const [presetId, setPresetId] = useState(SF_PRESETS[0].id)
@@ -82,7 +83,9 @@ export function SpecificFactorsTab({ year }: { year: number }) {
         <div className="min-w-0 space-y-6">
           <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <h3 className="font-semibold">{s.laborChart}</h3>
-            <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{s.laborChartNote(`${icon.C} ${names.C}`, `${icon.F} ${names.F}`)}</p>
+            <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+              {s.laborChartNote(`${icon.C} ${names.C}`, `${icon.F} ${names.F}`)} {s.wageUnit}
+            </p>
             <LaborChart
               e={e}
               before={autarky}
@@ -172,6 +175,7 @@ export function SpecificFactorsTab({ year }: { year: number }) {
         </div>
       </section>
 
+      <LandCard year={year} onYear={onYear} />
       <KoreaCard year={year} />
       <MigrationCard />
     </div>
