@@ -30,7 +30,7 @@ export interface TradeData {
     bilateral: Record<Flow, Record<string, Record<string, number>>>
   } | null
   /** World Bank series: indicator → partner → year → value. */
-  wb?: Partial<Record<'agriVa' | 'indVa' | 'arable' | 'agriEmp', Record<string, Record<string, number>>>>
+  wb?: Partial<Record<'agriVa' | 'indVa' | 'arable' | 'agriEmp' | 'labor', Record<string, Record<string, number>>>>
   /** GDP in USD billions by year and partner. */
   gdp?: Record<string, Record<string, number>>
   /** Capital city [longitude, latitude] by partner. */

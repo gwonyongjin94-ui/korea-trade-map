@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo } from 'react'
 import { DATA } from '../data/trade'
 import { goodById } from '../data/goods'
 import { money } from '../format'
@@ -7,17 +7,23 @@ import { KOREA, goodRca, ricardoGoods } from '../realExamples'
 import { THEORY_TEXT } from '../theoryText'
 import { GoodSelect } from './GoodSelect'
 
-const DEFAULT_PARTNER = '704'
+interface Props {
+  x: string
+  y: string
+  onGoods: (x: string, y: string) => void
+  partner: string
+  onPartner: (iso: string) => void
+}
 
 /** Ricardian comparison of any two goods for Korea and a partner, via revealed comparative advantage. */
-export function RicardoGoodsView() {
+export function RicardoGoodsView({ x, y, onGoods, partner: pick, onPartner }: Props) {
   const { lang } = useI18n()
   const t = THEORY_TEXT[lang]
   const r = t.ricardo.real
   const g = r.goodsMode
-  const [x, setX] = useState('8542')
-  const [y, setY] = useState('1006')
-  const [pick, setPick] = useState(DEFAULT_PARTNER)
+  const setX = (v: string) => onGoods(v, y)
+  const setY = (v: string) => onGoods(x, v)
+  const setPick = onPartner
   const partnerId = useId()
   const rows = useMemo(() => ricardoGoods(x, y), [x, y])
   const row = rows.find((v) => v.iso === pick) ?? rows[0]
@@ -27,7 +33,6 @@ export function RicardoGoodsView() {
   const label = (good: typeof gx) => (good ? `${good.icon} ${good.name[lang]}` : '')
   const short = (good: typeof gx) => (good ? good.name[lang].replace(/\s*\(.*\)/, '') : '')
   const fmt = (v: number) => (v >= 10 ? v.toFixed(1) : v.toFixed(2))
-  const hours = (rca: number) => fmt(10 / rca)
   const reporters = Object.keys(DATA.goods?.totals ?? {}).length
   const kx = goodRca(KOREA, x)
   const ky = goodRca(KOREA, y)
@@ -37,10 +42,7 @@ export function RicardoGoodsView() {
       <GoodSelect label={g.x} value={x} onChange={setX} groups={g.groups} disabled={[y]} />
       <button
         type="button"
-        onClick={() => {
-          setX(y)
-          setY(x)
-        }}
+        onClick={() => onGoods(y, x)}
         title={g.swap}
         aria-label={g.swap}
         className="rounded-full border border-slate-200 bg-white px-2.5 py-2 text-slate-500 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:hover:text-white"
@@ -61,7 +63,6 @@ export function RicardoGoodsView() {
   }
 
   const korea = name(KOREA)
-  const partner = name(row.iso)
   const hits = rows.filter((v) => v.match).length
   const good = row.predicted === 'x' ? short(gx) : short(gy)
   const other = row.predicted === 'x' ? short(gy) : short(gx)
@@ -138,11 +139,7 @@ export function RicardoGoodsView() {
           </span>
         </li>
       </ul>
-      {kx && ky && (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          🧪 {g.explorer(korea, partner, short(gx), short(gy), hours(kx), hours(ky), hours(row.px), hours(row.py))}
-        </p>
-      )}
+      <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">↓ {r.toModel}</p>
 
       <div>
         <h3 className="mb-2 font-semibold">{r.allTitle}</h3>

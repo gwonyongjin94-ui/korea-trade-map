@@ -24,6 +24,7 @@ const WB_INDICATORS = {
   indVa: 'NV.IND.EMPL.KD', // industry (incl. construction) value added per worker, constant 2015 USD
   arable: 'AG.LND.ARBL.HA.PC', // arable land, hectares per person
   agriEmp: 'SL.AGR.EMPL.ZS', // employment in agriculture, % of total (modelled ILO estimate)
+  labor: 'SL.TLF.TOTL.IN', // labour force, total (people)
 }
 const KOREA = 410
 const YEARS = Array.from({ length: 11 }, (_, i) => 2015 + i)

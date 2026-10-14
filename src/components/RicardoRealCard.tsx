@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo } from 'react'
 import { percent } from '../format'
 import { countryFlag, countryName, useI18n } from '../i18n'
 import { costOfIndustry, KOREA, ricardoTest, workersPerMillion, type Productivity } from '../realExamples'
@@ -7,33 +7,44 @@ import { RicardoGoodsView } from './RicardoGoodsView'
 
 /** Gulf oil and gas exporters, whose measured "industry" productivity is mostly extraction. */
 const OIL = new Set(['682', '784', '368', '414', '634', '512', '048'])
-const DEFAULT_PARTNER = '704'
 
 const usd = (v: number, lang: string) => `$${Math.round(v).toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US')}`
 const one = (v: number) => (v >= 100 ? v.toFixed(0) : v.toFixed(1))
 
 /** Korea against one partner with World Bank productivity, and the prediction checked against trade. */
-export function RicardoRealCard({ year }: { year: number }) {
+export type RicardoMode = 'productivity' | 'goods'
+
+interface Props {
+  year: number
+  mode: RicardoMode
+  onMode: (m: RicardoMode) => void
+  /** The partner shown, already resolved to one that has data in the current mode. */
+  partner: string
+  onPartner: (iso: string) => void
+  goods: { x: string; y: string }
+  onGoods: (x: string, y: string) => void
+}
+
+/** Real-data Ricardian check, in two modes; its selection drives the model solved below it. */
+export function RicardoRealCard({ year, mode, onMode, partner, onPartner, goods, onGoods }: Props) {
   const { lang } = useI18n()
   const r = THEORY_TEXT[lang].ricardo.real
   const rows = useMemo(() => ricardoTest(year), [year])
-  const [pick, setPick] = useState(DEFAULT_PARTNER)
-  const [mode, setMode] = useState<'productivity' | 'goods'>('productivity')
   const selectId = useId()
   const name = (iso: string) => countryName(iso, lang)
-  const row = rows.find((x) => x.iso === pick) ?? rows[0]
+  const row = rows.find((x) => x.iso === partner) ?? rows[0]
   if (!row) return null
 
   const korea = name(KOREA)
-  const partner = name(row.iso)
+  const partnerName = name(row.iso)
   const goodName = (g: 'agri' | 'ind') => r.goods[g].replace(/^\S+\s/, '')
   const kAdvBoth = row.korea.agri > row.partner.agri && row.korea.ind > row.partner.ind
   const pAdvBoth = row.korea.agri < row.partner.agri && row.korea.ind < row.partner.ind
   const absolute = kAdvBoth
     ? r.absolute(korea)
     : pAdvBoth
-      ? r.absolute(partner)
-      : r.absoluteSplit(row.korea.agri > row.partner.agri ? korea : partner, row.korea.ind > row.partner.ind ? korea : partner)
+      ? r.absolute(partnerName)
+      : r.absoluteSplit(row.korea.agri > row.partner.agri ? korea : partnerName, row.korea.ind > row.partner.ind ? korea : partnerName)
   const hits = rows.filter((x) => x.match).length
   const misses = rows.filter((x) => !x.match)
   const yearsOf = (p: Productivity) => [...new Set([p.agriYear, p.indYear])].join('·')
@@ -55,7 +66,7 @@ export function RicardoRealCard({ year }: { year: number }) {
             <button
               key={k}
               type="button"
-              onClick={() => setMode(k)}
+              onClick={() => onMode(k)}
               aria-pressed={mode === k}
               className={'rounded-md px-2.5 py-1.5 ' + (mode === k ? 'bg-white font-semibold shadow-sm dark:bg-slate-950' : 'text-slate-500 dark:text-slate-400')}
             >
@@ -67,7 +78,7 @@ export function RicardoRealCard({ year }: { year: number }) {
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{mode === 'goods' ? r.goodsMode.body : r.body}</p>
       {mode === 'goods' ? (
         <div className="mt-4">
-          <RicardoGoodsView />
+          <RicardoGoodsView x={goods.x} y={goods.y} onGoods={onGoods} partner={partner} onPartner={onPartner} />
         </div>
       ) : (
         <>
@@ -79,7 +90,7 @@ export function RicardoRealCard({ year }: { year: number }) {
         <select
           id={selectId}
           value={row.iso}
-          onChange={(e) => setPick(e.target.value)}
+          onChange={(e) => onPartner(e.target.value)}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
         >
           {[...rows]
@@ -168,7 +179,7 @@ export function RicardoRealCard({ year }: { year: number }) {
         </li>
       </ul>
       <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-        🧪 {r.explorer(korea, partner, k.workers[1], k.workers[0], p.workers[1], p.workers[0])}
+        ↓ {r.toModel}
       </p>
 
       <h3 className="mt-6 mb-2 font-semibold">{r.allTitle}</h3>
@@ -193,7 +204,7 @@ export function RicardoRealCard({ year }: { year: number }) {
               .map((x) => (
                 <tr
                   key={x.iso}
-                  onClick={() => setPick(x.iso)}
+                  onClick={() => onPartner(x.iso)}
                   className={
                     'cursor-pointer border-b border-slate-100 last:border-0 dark:border-slate-800/60 ' +
                     (x.iso === row.iso ? 'bg-a-soft/60 dark:bg-blue-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40')

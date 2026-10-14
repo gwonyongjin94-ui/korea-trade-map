@@ -3,9 +3,6 @@ import { josa, type Lang } from './i18n'
 const ko = {
   tabs: { map: '🗺️ 무역 지도', theory: '📐 이론 분석', ricardo: '🧪 리카도 모형' },
   ricardo: {
-    title: '🧪 리카도 모형 탐색기',
-    body: '두 나라·두 재화로 기회비용 → 비교우위 → 교역가격 → 교역이익을 직접 실험합니다. 오른쪽 위 예시에서 "한국·베트남: 반도체와 쌀"을 고르면 이 지도의 실제 한국–베트남 무역과 비교해 볼 수 있고, 🎓 학습 모드는 퀴즈와 과제로 순서대로 안내합니다.',
-    open: '새 창에서 열기',
     real: {
       modes: { productivity: '노동생산성: 농업 vs 공업', goods: '두 재화 직접 고르기' },
       goodsMode: {
@@ -19,8 +16,6 @@ const ko = {
         comparative: (c: string, g: string) => `비교우위: 상대국과 비교하면 ${josa(c, '은/는')} ${g}에 비교우위가 있습니다 (X ÷ Y 비율이 더 큰 쪽이 X에 비교우위).`,
         predicted: (c: string, g: string, o: string) => `예측: ${josa(c, '은/는')} 이 나라에 ${josa(g, '을/를')} ${o}보다 상대적으로 더 많이 수출합니다.`,
         actual: (ex: string, ey: string, mx: string, my: string) => `실제: 한국의 수출 X ${ex} · Y ${ey}, 한국의 수입 X ${mx} · Y ${my}`,
-        explorer: (k: string, p: string, x: string, y: string, kx: string, ky: string, px: string, py: string) =>
-          `탐색기에 넣어 볼 값 (10 ÷ RCA를 1단위당 노동시간으로 쓴 것, 비교우위의 방향만 같음): ${k} ${x} ${kx} · ${y} ${ky}, ${p} ${x} ${px} · ${y} ${py}`,
         basis: (y: number, n: number) => `${y}년 기준 · "세계" = 그해 자료를 보고한 ${n}개국`,
         none: '이 두 재화로는 비교할 수 있는 상대국이 없습니다. 두 나라 모두 두 재화를 수출하고, 한국과도 두 재화를 거래해야 합니다.',
         colsAll: { country: '국가', ratio: '상대국 X ÷ Y', predicted: '한국 비교우위', actual: '한국 수출·수입의 X ÷ Y', result: '결과' },
@@ -47,8 +42,8 @@ const ko = {
       actual: (xs: string, ms: string) => `실제: 한국의 수출에서 농산물 비중 ${xs}, 수입에서 농산물 비중 ${ms}`,
       match: '예측과 일치',
       mismatch: '예측과 다름',
-      explorer: (k: string, p: string, ki: string, ka: string, pi: string, pa: string) =>
-        `아래 탐색기에서 국가 A = ${k}, B = ${p}로 고르고 재화 이름을 공산품·농산물로 직접 입력한 뒤, 1단위당 노동시간에 이 값을 넣으면 같은 비교우위를 실험해 볼 수 있습니다. ${k}: 공산품 ${ki}, 농산물 ${ka} · ${p}: 공산품 ${pi}, 농산물 ${pa} (100만 달러어치 생산에 필요한 노동자 수)`,
+      toModel: '이 숫자로 아래에서 리카도 모형(생산가능곡선, 교역가격, 교역이익, 임금)을 풀어 봅니다.',
+      modelTitle: (k: string, p: string, x: string, y: string) => `📐 리카도 모형으로 풀어 보기: ${k} vs ${p} · ${josa(x, '과/와')} ${y}`,
       all: (hit: number, n: number) => `상대국 ${n}곳 중 ${hit}곳에서 예측이 맞았습니다 (${Math.round((hit / n) * 100)}%).`,
       allTitle: '모든 상대국',
       colsAll: { country: '국가', cost: '공업 기회비용', predicted: '한국 비교우위', actual: '실제 무역 구성', result: '결과' },
@@ -150,9 +145,6 @@ export type TheoryText = typeof ko
 const en: TheoryText = {
   tabs: { map: '🗺️ Trade map', theory: '📐 Theory', ricardo: '🧪 Ricardian model' },
   ricardo: {
-    title: '🧪 Ricardian model explorer',
-    body: 'Experiment with two countries and two goods, from opportunity cost to comparative advantage, the terms of trade and the gains from trade. Pick "Korea & Vietnam: chips and rice" from the examples at the top right to compare with the real Korea–Vietnam trade on the map; 🎓 learn mode walks through it with quizzes and tasks.',
-    open: 'Open in a new window',
     real: {
       modes: { productivity: 'Labor productivity: agriculture vs industry', goods: 'Pick any two goods' },
       goodsMode: {
@@ -166,8 +158,6 @@ const en: TheoryText = {
         comparative: (c, g) => `Comparative advantage: relative to the partner, ${c} has the comparative advantage in ${g} (the larger X ÷ Y ratio has it in X).`,
         predicted: (c, g, o) => `Prediction: ${c} exports relatively more ${g} than ${o} to this country.`,
         actual: (ex, ey, mx, my) => `Actual: Korea exports X ${ex} · Y ${ey}, imports X ${mx} · Y ${my}`,
-        explorer: (k, p, x, y, kx, ky, px, py) =>
-          `Values to try in the explorer (10 ÷ RCA as hours per unit, which keeps only the direction of comparative advantage): ${k} ${x} ${kx} · ${y} ${ky}, ${p} ${x} ${px} · ${y} ${py}`,
         basis: (y, n) => `As of ${y} · "world" = the ${n} countries reporting that year`,
         none: 'No partner can be compared on these two goods: both countries must export both goods and trade both with Korea.',
         colsAll: { country: 'Country', ratio: 'Partner X ÷ Y', predicted: 'Korea’s advantage', actual: 'Korea’s exports vs imports, X ÷ Y', result: 'Result' },
@@ -193,8 +183,8 @@ const en: TheoryText = {
       actual: (xs, ms) => `Actual: farm goods are ${xs} of Korea's exports to the partner and ${ms} of its imports from it`,
       match: 'Matches',
       mismatch: 'Does not match',
-      explorer: (k, p, ki, ka, pi, pa) =>
-        `In the explorer below, choose A = ${k} and B = ${p}, type the goods as manufactures and farm goods, and enter these hours per unit to experiment with the same comparative advantage. ${k}: manufactures ${ki}, farm goods ${ka} · ${p}: manufactures ${pi}, farm goods ${pa} (workers per USD 1 million of output).`,
+      toModel: 'Below, these numbers are solved in the Ricardian model: production possibilities, world price, gains from trade and wages.',
+      modelTitle: (k, p, x, y) => `📐 Solving the Ricardian model: ${k} vs ${p} · ${x} and ${y}`,
       all: (hit, n) => `The prediction holds for ${hit} of ${n} partners (${Math.round((hit / n) * 100)}%).`,
       allTitle: 'All partners',
       colsAll: { country: 'Country', cost: 'Cost of industry', predicted: 'Korea’s advantage', actual: 'Actual trade mix', result: 'Result' },
