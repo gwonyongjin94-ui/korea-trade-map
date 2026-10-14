@@ -97,6 +97,8 @@ const ko = {
     realNone: '교역이 일어나지 않으므로 실질임금도 그대로입니다.',
   },
   footer: '가정: 노동이 유일한 생산요소이고, 국가 간 이동하지 않으며, 두 나라 소비자는 동일한 Cobb-Douglas 선호를 가집니다.',
+  twoCountry:
+    '이 모형은 두 나라만 서로 교역하는 세계를 가정합니다. 그래서 교역이익(%)은 한국의 실제 교역이익이 아니라 모형 안의 값이고, 경제 규모가 크게 다르면 큰 나라는 두 재화를 모두 생산하며 이익을 얻지 못하는 "큰 나라 케이스"가 됩니다. 보고서에는 비교우위의 방향과 특화 패턴을 중심으로 쓰세요.',
 }
 
 export type RicardoStrings = typeof ko
@@ -188,6 +190,8 @@ const en: RicardoStrings = {
     realNone: 'With no trade, real wages stay the same.',
   },
   footer: 'Assumptions: labor is the only factor, it cannot move between countries, and consumers in both countries share the same Cobb-Douglas preferences.',
+  twoCountry:
+    'The model assumes a world of just these two countries. The gains (%) are values inside the model, not Korea’s actual gains from trade, and when the two economies differ a lot in size the larger one keeps producing both goods and gains nothing (the large-country case). In a report, focus on the direction of comparative advantage and specialisation.',
 }
 
 export const RICARDO_TEXT: Record<Lang, RicardoStrings> = { ko, en }

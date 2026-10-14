@@ -17,6 +17,8 @@ interface Props {
 export function Explanation({ names, inputs, result, priceMode, unit, upTo = 5 }: Props) {
   const { t, lang } = useRicardoText()
   const f = (v: number) => fmt(v, lang)
+  // Labour inputs keep three significant digits so the division in step 1 can be checked by hand.
+  const f3 = (v: number) => v.toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US', { maximumSignificantDigits: 3 })
   const { comparativeAdvantage: ca, absoluteAdvantage: aa, countries, tradeCase } = result
   const nameOf = (k: 'A' | 'B' | 'tie' | null) => (k === 'A' ? names.A : k === 'B' ? names.B : null)
 
@@ -31,7 +33,7 @@ export function Explanation({ names, inputs, result, priceMode, unit, upTo = 5 }
         {(['A', 'B'] as const).map((k) => (
           <p key={k}>
             <Dot slot={k} />
-            {t.step1(names, names[k], f(inputs[k].aX), f(inputs[k].aY), f(countries[k].opportunityCost.X), unit)}
+            {t.step1(names, names[k], f3(inputs[k].aX), f3(inputs[k].aY), f(countries[k].opportunityCost.X), unit)}
           </p>
         ))}
       </Card>

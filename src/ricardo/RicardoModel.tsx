@@ -45,6 +45,9 @@ export function RicardoModel({ setup, isos, title }: Props) {
       <div>
         <h2 className="text-lg font-bold">{title}</h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{setup.source}</p>
+        {result.tradeCase === 'A-large' || result.tradeCase === 'B-large' ? (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">ℹ️ {t.twoCountry}</p>
+        ) : null}
         {setup.warning && (
           <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
             ⚠️ {setup.warning}
@@ -105,7 +108,10 @@ export function RicardoModel({ setup, isos, title }: Props) {
           <SummaryTable names={names} result={result} />
         </>
       )}
-      <p className="text-xs text-slate-500 dark:text-slate-400">{t.footer}</p>
+      <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+        <p>{t.footer}</p>
+        <p>{t.twoCountry}</p>
+      </div>
     </section>
   )
 }

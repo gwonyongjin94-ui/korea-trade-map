@@ -51,7 +51,7 @@ const ko = {
       oil: '산유국에서는 "공업" 생산성이 원유·가스 채굴에서 나와, 노동생산성 차이보다 자원 부존(헥셔–올린 모형)이 무역을 결정합니다.',
       misses: (list: string) => `맞지 않는 나라: ${list}.`,
       cautions: [
-        '노동자 1인당 부가가치(2015년 불변 달러)는 물량이 아니라 금액 기준 생산성이라 가격 차이가 섞여 있습니다.',
+        '노동자 1인당 부가가치(2015년 불변 달러)는 물량이 아니라 금액 기준 생산성이라 가격 차이가 섞여 있고, 기술뿐 아니라 자본(설비)의 기여도 들어 있어 리카도 모형이 가정하는 "노동만의 생산성"과는 다릅니다.',
         '무역 쪽 농산물은 HS 01–24류라 가공식품(국민계정에서는 제조업)도 들어가고, 공업에는 광업·건설이 포함됩니다. 두 분류가 정확히 맞지는 않습니다.',
         '무역수지가 0이 아니므로 "무엇을 더 수출하느냐"는 수출과 수입에서 농산물이 차지하는 비중을 비교해 판단했습니다.',
         '대만·마셜제도는 세계은행 자료가 없어 빠졌고, 미국의 산업별 생산성은 2015년 값이 마지막입니다.',
@@ -192,7 +192,7 @@ const en: TheoryText = {
       oil: 'In oil exporters, "industry" productivity comes from oil and gas extraction, so resource endowments (the Heckscher–Ohlin model) rather than labor productivity drive trade.',
       misses: (list) => `Exceptions: ${list}.`,
       cautions: [
-        'Value added per worker (constant 2015 USD) measures productivity in value, not quantity, so price differences are mixed in.',
+        'Value added per worker (constant 2015 USD) measures productivity in value, not quantity, so price differences are mixed in, and it reflects capital (equipment) as well as technology, unlike the labor-only productivity of the Ricardian model.',
         'On the trade side, farm goods are HS chapters 01–24, which include processed food (manufacturing in national accounts), and industry includes mining and construction; the two classifications do not line up exactly.',
         'Bilateral trade is not balanced, so "what Korea exports more of" is judged by comparing farm goods’ share of exports with their share of imports.',
         'Taiwan and the Marshall Islands have no World Bank data; US sector productivity ends in 2015.',
