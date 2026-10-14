@@ -19,6 +19,16 @@ export interface TradeData {
   rca?: { reporters: number; years: number[]; byYear: Record<string, Record<string, [number, number]>>; share: Record<string, number> } | null
   /** Farm goods (HS 01–24) and other goods: flow → year → partner → [farm, other], USD millions. */
   sectors?: Record<Flow, Record<string, Record<string, [number, number]>>> | null
+  /**
+   * One year's exports to the world by reporting country and HS code (chapters and products), and
+   * Korea's trade with each chapter partner by chapter that year; USD millions.
+   */
+  goods?: {
+    year: number
+    totals: Record<string, number>
+    exports: Record<string, Record<string, number>>
+    bilateral: Record<Flow, Record<string, Record<string, number>>>
+  } | null
   /** World Bank series: indicator → partner → year → value. */
   wb?: Partial<Record<'agriVa' | 'indVa' | 'arable' | 'agriEmp', Record<string, Record<string, number>>>>
   /** GDP in USD billions by year and partner. */

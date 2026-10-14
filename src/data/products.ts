@@ -19,6 +19,7 @@ export const PRODUCTS: Product[] = [
   { id: '2709', icon: '🛢️', name: { ko: '원유', en: 'Crude oil' }, hs: '2709' },
   { id: '2846', icon: '🧲', name: { ko: '희토류 화합물', en: 'Rare-earth compounds' }, hs: '2846' },
   { id: '190230', icon: '🍜', name: { ko: '라면 등 면류', en: 'Instant noodles & pasta' }, hs: '1902.30' },
+  { id: '1006', icon: '🍚', name: { ko: '쌀', en: 'Rice' }, hs: '1006' },
 ]
 
 export const productById = (id: string) => PRODUCTS.find((p) => p.id === id) ?? PRODUCTS[0]
@@ -30,7 +31,7 @@ interface Chapter {
 }
 
 /** HS 2-digit chapters with short names. Icons mark the chapters that matter for Korea's trade. */
-const CHAPTERS: Record<string, Chapter> = {
+export const CHAPTERS: Record<string, Chapter> = {
   '01': { icon: '🐄', ko: '산 동물', en: 'Live animals' },
   '02': { icon: '🥩', ko: '육류', en: 'Meat' },
   '03': { icon: '🐟', ko: '수산물', en: 'Fish & seafood' },

@@ -1,14 +1,39 @@
 import { useId, useMemo, useState } from 'react'
+import { goodById } from '../../data/goods'
 import { SF_PRESETS, type SfPreset } from '../../data/sfPresets'
+import { DATA, pairOf, WORLD } from '../../data/trade'
+import { money } from '../../format'
 import { atPrice, autarkyPrice, distribution, utilityAt, withTrade, type Economy, type Group } from '../../model/specificFactors'
 import { useI18n } from '../../i18n'
 import { SF_TEXT, type Names } from '../../sfText'
+import { GoodSelect } from '../GoodSelect'
 import { KoreaCard } from './KoreaCard'
 import { LandCard } from './LandCard'
 import { MigrationCard } from './MigrationCard'
 import { LaborChart, PpfChart, PpfLegend } from './SfCharts'
 
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`
+
+/** Korea's exports and imports of a good (HS chapter or product) with the world in a year, USD millions. */
+function koreaTrade(code: string, year: number): { x: number; m: number } {
+  if (code.length === 2) {
+    const row = DATA.iit?.chapters[year]?.find(([c]) => c === code)
+    return { x: row?.[1] ?? 0, m: row?.[2] ?? 0 }
+  }
+  return pairOf(code, year, WORLD)
+}
+
+/** Whether Korea exports relatively more of C than of F: X_C / M_C > X_F / M_F, without dividing by zero. */
+const leansTo = (c: { x: number; m: number }, f: { x: number; m: number }) => c.x * f.m > f.x * c.m
+
+const shortName = (name: string) => name.replace(/\s*\(.*\)/, '')
+
+interface Chosen {
+  C: string
+  F: string
+  K: string
+  T: string
+}
 
 export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y: number) => void }) {
   const { lang } = useI18n()
@@ -17,15 +42,37 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
   const preset = SF_PRESETS.find((p) => p.id === presetId) ?? SF_PRESETS[0]
   const [e, setE] = useState<Economy>(preset.economy)
   const [gap, setGap] = useState(preset.worldGap)
+  const [chosen, setChosen] = useState<Chosen | null>(null)
 
   const load = (p: SfPreset) => {
     setPresetId(p.id)
     setE(p.economy)
     setGap(p.worldGap)
+    setChosen(null)
   }
 
-  const names: Names = preset.names[lang]
-  const icon = preset.icons
+  /** Pick goods: specific factors default to each sector's usual one, and real trade sets the price direction. */
+  const choose = (C: string, F: string) => {
+    const gc = goodById(C)
+    const gf = goodById(F)
+    if (!gc || !gf) return
+    setChosen({
+      C,
+      F,
+      K: chosen?.C === C ? chosen.K : gc.factor[lang],
+      T: chosen?.F === F ? chosen.T : gf.factor[lang],
+    })
+    const sign = leansTo(koreaTrade(C, year), koreaTrade(F, year)) ? 1 : -1
+    setGap(sign * (Math.abs(gap) || 30))
+  }
+
+  const goodC = chosen ? goodById(chosen.C) : undefined
+  const goodF = chosen ? goodById(chosen.F) : undefined
+  const names: Names =
+    chosen && goodC && goodF ? { C: shortName(goodC.name[lang]), F: shortName(goodF.name[lang]), K: chosen.K, T: chosen.T } : preset.names[lang]
+  const icon = chosen && goodC && goodF ? { C: goodC.icon, F: goodF.icon } : preset.icons
+  const tradeC = chosen ? koreaTrade(chosen.C, year) : null
+  const tradeF = chosen ? koreaTrade(chosen.F, year) : null
   const pa = useMemo(() => autarkyPrice(e), [e])
   const pw = pa * (1 + gap / 100)
   const autarky = useMemo(() => atPrice(e, pa), [e, pa])
@@ -74,9 +121,59 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
             ))}
           </select>
         </div>
-        <p className="mt-3 rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-200">
-          <span className="font-semibold">📚 {preset.title[lang]}</span> · {preset.note[lang]}
-        </p>
+        {!chosen && (
+          <p className="mt-3 rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-200">
+            <span className="font-semibold">📚 {preset.title[lang]}</span> · {preset.note[lang]}
+          </p>
+        )}
+
+        <div className="mt-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold">{s.pick.title}</h3>
+            {chosen && (
+              <button
+                type="button"
+                onClick={() => load(preset)}
+                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+              >
+                {s.pick.reset}
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <GoodSelect label={s.pick.goodC} value={chosen?.C ?? ''} onChange={(C) => choose(C, chosen?.F ?? '1006')} groups={s.pick.groups} disabled={[chosen?.F ?? '']} placeholder={`${preset.icons.C} ${preset.names[lang].C} · ${s.presets}`} />
+            <GoodSelect label={s.pick.goodF} value={chosen?.F ?? ''} onChange={(F) => choose(chosen?.C ?? '8542', F)} groups={s.pick.groups} disabled={[chosen?.C ?? '']} placeholder={`${preset.icons.F} ${preset.names[lang].F} · ${s.presets}`} />
+            {chosen && (
+              <>
+                <TextField label={s.pick.factorK} value={chosen.K} onChange={(K) => setChosen({ ...chosen, K })} />
+                <TextField label={s.pick.factorT} value={chosen.T} onChange={(T) => setChosen({ ...chosen, T })} />
+              </>
+            )}
+          </div>
+          {chosen && tradeC && tradeF && (
+            <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm dark:bg-slate-800/50">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{s.pick.real(year)}</div>
+              {(
+                [
+                  [icon.C, names.C, tradeC],
+                  [icon.F, names.F, tradeF],
+                ] as const
+              ).map(([ic, n, t]) => (
+                <div key={n} className="mt-1 flex flex-wrap justify-between gap-x-3 tabular-nums">
+                  <span>
+                    {ic} {n}
+                  </span>
+                  <span className="text-slate-600 dark:text-slate-300">
+                    {s.pick.row(money(t.x, lang, { short: true }), money(t.m, lang, { short: true }), money(t.x - t.m, lang, { short: true, signed: true }))}
+                  </span>
+                </div>
+              ))}
+              <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                {gap > 0 ? s.pick.direction(names.C, names.F) : s.pick.direction(names.F, names.C)} {s.pick.note}
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -123,8 +220,8 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
           <h3 className="font-semibold">{s.setup}</h3>
           <div className="space-y-3">
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{s.endowments}</div>
-            <Slider label={`🏭 ${names.K} (K)`} value={e.K} min={10} max={500} step={10} onChange={(K) => setE({ ...e, K })} />
-            <Slider label={`🌾 ${names.T} (T)`} value={e.T} min={10} max={500} step={10} onChange={(T) => setE({ ...e, T })} />
+            <Slider label={`${icon.C} ${names.K} (K)`} value={e.K} min={10} max={500} step={10} onChange={(K) => setE({ ...e, K })} />
+            <Slider label={`${icon.F} ${names.T} (T)`} value={e.T} min={10} max={500} step={10} onChange={(T) => setE({ ...e, T })} />
             <Slider label={`👷 ${s.labor}`} value={e.L} min={20} max={300} step={10} onChange={(L) => setE({ ...e, L })} />
           </div>
           <div className="space-y-3">
@@ -157,8 +254,8 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <GroupCard title={s.groups.labor} g={dist.labor} names={names} icons={icon} traded={traded} />
-          <GroupCard title={s.groups.capital(names.K)} g={dist.capital} names={names} icons={icon} traded={traded} />
-          <GroupCard title={s.groups.land(names.T)} g={dist.land} names={names} icons={icon} traded={traded} />
+          <GroupCard title={`${icon.C} ${s.groups.capital(names.K)}`} g={dist.capital} names={names} icons={icon} traded={traded} />
+          <GroupCard title={`${icon.F} ${s.groups.land(names.T)}`} g={dist.land} names={names} icons={icon} traded={traded} />
         </div>
       </section>
 
@@ -253,6 +350,24 @@ function Slider({
         <span className="shrink-0 font-semibold tabular-nums">{format ? format(value) : step < 1 ? value.toFixed(2) : value}</span>
       </div>
       <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </div>
+  )
+}
+
+function TextField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const id = useId()
+  return (
+    <div className="min-w-0">
+      <label htmlFor={id} className="mb-1 block text-xs font-semibold">
+        {label}
+      </label>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+      />
     </div>
   )
 }

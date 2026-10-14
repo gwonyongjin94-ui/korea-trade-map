@@ -132,3 +132,84 @@ export function landTest(year: number, d: TradeData = DATA) {
   return { points, fit, korea: valueNear(d.wb?.arable?.[KOREA], year) }
 }
 
+/**
+ * Balassa RCA of a reporting country in one good, with "world" = every reporter in the goods table.
+ * Uses the latest year nearly every major exporter has reported (see the fetch script).
+ */
+export function goodRca(iso: string, code: string, d: TradeData = DATA): number | null {
+  const g = d.goods
+  const own = g?.exports[iso]?.[code]
+  const total = g?.totals[iso]
+  if (!g || own === undefined || !total) return null
+  let world = 0
+  let worldTotal = 0
+  for (const [rep, t] of Object.entries(g.totals)) {
+    worldTotal += t
+    world += g.exports[rep]?.[code] ?? 0
+  }
+  return world > 0 ? own / total / (world / worldTotal) : null
+}
+
+/** Korea's exports to or imports from a partner of one good in the goods year. */
+export function bilateral(flow: 'X' | 'M', iso: string, code: string, d: TradeData = DATA): number {
+  const g = d.goods
+  if (!g) return 0
+  if (code.length === 2) return g.bilateral[flow]?.[iso]?.[code] ?? 0
+  return d.partners[code]?.[flow]?.[g.year]?.[iso] ?? 0
+}
+
+/**
+ * Least trade (USD millions a year, both directions) in each of the two goods for a partner to count:
+ * below it, a stray shipment of a good one side barely makes can flip the comparison.
+ */
+export const MIN_GOOD_TRADE = 1
+
+export interface GoodsRow {
+  iso: string
+  /** RCA of Korea and of the partner in goods X and Y. */
+  kx: number
+  ky: number
+  px: number
+  py: number
+  predicted: 'x' | 'y'
+  /** Korea's exports to and imports from the partner, USD millions. */
+  ex: number
+  ey: number
+  mx: number
+  my: number
+  actual: 'x' | 'y'
+  match: boolean
+}
+
+/**
+ * Ricardian comparison for two goods using revealed comparative advantage: Korea's advantage is in X
+ * when its RCA in X relative to Y beats the partner's. The check is whether Korea's exports to the
+ * partner lean more towards X (relative to Y) than its imports from it, which holds whatever the balance.
+ */
+export function ricardoGoods(x: string, y: string, d: TradeData = DATA): GoodsRow[] {
+  const g = d.goods
+  if (!g || x === y) return []
+  const kx = goodRca(KOREA, x, d)
+  const ky = goodRca(KOREA, y, d)
+  if (!kx || !ky) return []
+  const rows: GoodsRow[] = []
+  for (const iso of Object.keys(g.bilateral.X)) {
+    if (iso === WORLD || iso === KOREA || !g.totals[iso]) continue
+    const px = goodRca(iso, x, d)
+    const py = goodRca(iso, y, d)
+    if (!px || !py) continue
+    const ex = bilateral('X', iso, x, d)
+    const ey = bilateral('X', iso, y, d)
+    const mx = bilateral('M', iso, x, d)
+    const my = bilateral('M', iso, y, d)
+    // Compare ex/ey with mx/my without dividing by zero, among partners that really trade both goods.
+    const lhs = ex * my
+    const rhs = mx * ey
+    if (ex + mx < MIN_GOOD_TRADE || ey + my < MIN_GOOD_TRADE || ex + ey <= 0 || mx + my <= 0 || lhs === rhs) continue
+    const predicted = kx / ky > px / py ? 'x' : 'y'
+    const actual = lhs > rhs ? 'x' : 'y'
+    rows.push({ iso, kx, ky, px, py, predicted, ex, ey, mx, my, actual, match: predicted === actual })
+  }
+  return rows
+}
+

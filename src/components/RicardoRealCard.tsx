@@ -3,6 +3,7 @@ import { percent } from '../format'
 import { countryFlag, countryName, useI18n } from '../i18n'
 import { costOfIndustry, KOREA, ricardoTest, workersPerMillion, type Productivity } from '../realExamples'
 import { THEORY_TEXT } from '../theoryText'
+import { RicardoGoodsView } from './RicardoGoodsView'
 
 /** Gulf oil and gas exporters, whose measured "industry" productivity is mostly extraction. */
 const OIL = new Set(['682', '784', '368', '414', '634', '512', '048'])
@@ -17,6 +18,7 @@ export function RicardoRealCard({ year }: { year: number }) {
   const r = THEORY_TEXT[lang].ricardo.real
   const rows = useMemo(() => ricardoTest(year), [year])
   const [pick, setPick] = useState(DEFAULT_PARTNER)
+  const [mode, setMode] = useState<'productivity' | 'goods'>('productivity')
   const selectId = useId()
   const name = (iso: string) => countryName(iso, lang)
   const row = rows.find((x) => x.iso === pick) ?? rows[0]
@@ -46,8 +48,29 @@ export function RicardoRealCard({ year }: { year: number }) {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-900">
-      <h2 className="text-lg font-bold">{r.title}</h2>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{r.body}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h2 className="text-lg font-bold">{r.title}</h2>
+        <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs dark:bg-slate-800">
+          {(['productivity', 'goods'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setMode(k)}
+              aria-pressed={mode === k}
+              className={'rounded-md px-2.5 py-1.5 ' + (mode === k ? 'bg-white font-semibold shadow-sm dark:bg-slate-950' : 'text-slate-500 dark:text-slate-400')}
+            >
+              {r.modes[k]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{mode === 'goods' ? r.goodsMode.body : r.body}</p>
+      {mode === 'goods' ? (
+        <div className="mt-4">
+          <RicardoGoodsView />
+        </div>
+      ) : (
+        <>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <label htmlFor={selectId} className="text-sm font-semibold">
@@ -203,6 +226,8 @@ export function RicardoRealCard({ year }: { year: number }) {
           ))}
         </ul>
       </details>
+        </>
+      )}
     </section>
   )
 }

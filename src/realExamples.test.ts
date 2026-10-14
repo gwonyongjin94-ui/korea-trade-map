@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TradeData } from './data/trade'
-import { costOfIndustry, landTest, ricardoTest, valueNear, workersPerMillion } from './realExamples'
+import { costOfIndustry, goodRca, landTest, ricardoGoods, ricardoTest, valueNear, workersPerMillion } from './realExamples'
 
 const D: TradeData = {
   meta: { source: 'test', unit: 'USD million', fetched: '-', years: [2024, 2025] },
@@ -54,5 +54,40 @@ describe('land test', () => {
     expect(points.find((p) => p.iso === '036')!.supplier).toBe(true)
     expect(fit!.slope).toBeGreaterThan(0)
     expect(korea!.value).toBe(0.025)
+  })
+})
+
+describe('two chosen goods', () => {
+  const G: TradeData = {
+    meta: { source: 'test', unit: 'USD million', fetched: '-', years: [2023] },
+    partners: { '1006': { X: { 2023: { '704': 1 } }, M: { 2023: { '704': 20 } } } },
+    chapters: { X: {}, M: {} },
+    goods: {
+      year: 2023,
+      totals: { '410': 600, '704': 300, '276': 1500 },
+      exports: {
+        '410': { '85': 200, '1006': 1 },
+        '704': { '85': 60, '1006': 30 },
+        '276': { '85': 150, '1006': 2 },
+      },
+      bilateral: { X: { '704': { '85': 40 } }, M: { '704': { '85': 10 } } },
+    },
+  }
+
+  it('computes RCA against all reporters', () => {
+    // World: 410 + 60 + 150 = 410 of chapter 85 out of 2,400 total; Korea: 200 / 600.
+    expect(goodRca('410', '85', G)).toBeCloseTo(200 / 600 / (410 / 2400))
+    expect(goodRca('999', '85', G)).toBeNull()
+  })
+
+  it('predicts and checks the pattern for two goods', () => {
+    const [vn] = ricardoGoods('85', '1006', G)
+    expect(vn.iso).toBe('704')
+    // Korea leans to chapter 85 and Vietnam to rice, relative to each other.
+    expect(vn.predicted).toBe('x')
+    // Korea sells Vietnam 40 of chapter 85 and 1 of rice, buys 10 and 20: exports lean to 85.
+    expect(vn.actual).toBe('x')
+    expect(vn.match).toBe(true)
+    expect(ricardoGoods('85', '85', G)).toEqual([])
   })
 })

@@ -34,6 +34,7 @@ const PRODUCT_GROUPS = [
   ['8703', '190230'],
   ['8901', '8507'],
   ['2710'],
+  ['1006'],
 ]
 /** Partners ranked this high in any year (exports or imports) get a by-chapter breakdown. */
 const TOP_FOR_CHAPTERS = 15
@@ -212,6 +213,7 @@ async function main() {
   const iit = skipChapters ? null : grubelLloyd(full)
   const sectors = skipChapters ? null : farmAndIndustry(full)
   const rca = skipChapters ? null : await balassa(full)
+  const goods = skipChapters ? null : await goodsByReporter(full)
   const { gdp, capitals } = await gravityInputs(byPartner)
   const wb = await worldBank(new Set(['410', ...Object.keys(full.X[YEARS[YEARS.length - 1]] ?? {})]))
 
@@ -226,6 +228,7 @@ async function main() {
     chapters,
     iit,
     sectors,
+    goods,
     wb,
     rca,
     gdp,
@@ -288,6 +291,54 @@ function farmAndIndustry(full) {
     }
   }
   return out
+}
+
+/**
+ * Exports to the world of every HS chapter and the filter's products, by reporting country, for the
+ * latest year almost every major exporter has reported; and Korea's trade with each chapter partner
+ * by chapter in that year. Lets the Ricardian card compare any two goods for Korea and a partner.
+ */
+async function goodsByReporter(full) {
+  const isoOf = await partnerMap()
+  // Reporter totals per year, the same requests as for RCA (served from the cache).
+  const reported = {}
+  for (const year of YEARS) {
+    for (const r of await rows({ year, flow: 'X', cmd: ['TOTAL'], partners: [0], reporters: RCA_REPORTERS })) {
+      if (r.primaryValue > 0) (reported[year] ??= {})[r.reporterCode] = r.primaryValue
+    }
+  }
+  const count = (year) => Object.keys(reported[year] ?? {}).length
+  const best = Math.max(...YEARS.map(count))
+  const year = [...YEARS].reverse().find((y) => count(y) >= best * 0.95)
+  const reporters = RCA_REPORTERS.filter((c) => reported[year][c])
+  const products = PRODUCT_GROUPS.flat()
+
+  const exports = {}
+  const totals = {}
+  const put = (r) => {
+    const iso = isoOf.get(r.reporterCode)
+    if (iso) (exports[iso] ??= {})[r.cmdCode] = millions(r.primaryValue)
+  }
+  for (let i = 0; i < reporters.length; i += 4) {
+    for (const r of await rows({ year, flow: 'X', cmd: ['AG2'], partners: [0], reporters: reporters.slice(i, i + 4) })) put(r)
+  }
+  const perCall = Math.floor(450 / products.length)
+  for (let i = 0; i < reporters.length; i += perCall) {
+    for (const r of await rows({ year, flow: 'X', cmd: products, partners: [0], reporters: reporters.slice(i, i + perCall) })) put(r)
+  }
+  for (const c of reporters) {
+    const iso = isoOf.get(c)
+    if (iso) totals[iso] = millions(reported[year][c])
+  }
+
+  const bilateral = { X: {}, M: {} }
+  for (const flow of FLOWS) {
+    for (const [iso, chapters] of Object.entries(full[flow][year] ?? {})) {
+      bilateral[flow][iso] = Object.fromEntries([...chapters].map(([c, v]) => [c, millions(v)]))
+    }
+  }
+  console.log(`Goods by reporter: ${year}, ${reporters.length} reporters (${calls} calls so far)`)
+  return { year, totals, exports, bilateral }
 }
 
 /** World Bank series for the given partners: indicator → iso → year → value. */
