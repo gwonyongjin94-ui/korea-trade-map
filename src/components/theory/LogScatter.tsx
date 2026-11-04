@@ -23,6 +23,8 @@ interface Props {
   selected: string | null
   onPick: (iso: string) => void
   tooltip: (iso: string) => { title: string; lines: string[] }
+  /** Factor of headroom around the data on the y axis; tighten it when values span a narrow range. */
+  padY?: number
 }
 
 const W = 640
@@ -42,13 +44,13 @@ function logTicks(lo: number, hi: number): number[] {
   return out
 }
 
-export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, marks = [], selected, onPick, tooltip }: Props) {
+export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, marks = [], selected, onPick, tooltip, padY = 1.6 }: Props) {
   const [hover, setHover] = useState<{ iso: string; x: number; y: number } | null>(null)
   const xs = points.map((p) => p.x).concat(line ? [line.from[0], line.to[0]] : [], marks.map((m) => m.x))
   const ys = points.map((p) => p.y).concat(line ? [line.from[1], line.to[1]] : [])
-  const pad = (lo: number, hi: number): [number, number] => [lo / 1.6, hi * 1.6]
+  const pad = (lo: number, hi: number, f = 1.6): [number, number] => [lo / f, hi * f]
   const [x0, x1] = pad(Math.min(...xs), Math.max(...xs))
-  const [y0, y1] = pad(Math.min(...ys), Math.max(...ys))
+  const [y0, y1] = pad(Math.min(...ys), Math.max(...ys), padY)
   const sx = (v: number) => M.left + ((Math.log(v) - Math.log(x0)) / (Math.log(x1) - Math.log(x0))) * (W - M.left - M.right)
   const sy = (v: number) => H - M.bottom - ((Math.log(v) - Math.log(y0)) / (Math.log(y1) - Math.log(y0))) * (H - M.top - M.bottom)
 

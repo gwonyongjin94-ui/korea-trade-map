@@ -2,6 +2,7 @@
 // and writes the compact dataset the app imports: src/data/trade.json. For the theory tab it also
 // fetches GDP (IMF World Economic Outlook) and capital coordinates (World Bank), derives the
 // Grubel–Lloyd index from the chapter breakdown, and computes Balassa RCA against major exporters.
+// For the Heckscher–Ohlin tab it fetches capital stock and employment from the Penn World Table (via FRED).
 //
 //   npm run data            # uses cached responses where available
 //   npm run data -- --fresh # ignores the cache
@@ -11,7 +12,7 @@
 // rate-limits bursts, so requests run one at a time with a pause and retry on HTTP 429.
 
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import countries from 'i18n-iso-countries'
 
 const BASE = 'https://comtradeapi.un.org/public/v1/preview/C/A/HS'
@@ -26,6 +27,15 @@ const WB_INDICATORS = {
   agriEmp: 'SL.AGR.EMPL.ZS', // employment in agriculture, % of total (modelled ILO estimate)
   labor: 'SL.TLF.TOTL.IN', // labour force, total (people)
 }
+/**
+ * Penn World Table 11.0 series as republished by FRED (no key needed), by ISO alpha-2 code:
+ * capital stock at current PPPs (millions of 2021 USD) and persons engaged (millions).
+ */
+const PWT_SERIES = {
+  capital: (a2) => `CKSPPP${a2}A666NRUG`,
+  workers: (a2) => `EMPENG${a2}A148NRUG`,
+}
+const FRED_CSV = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id='
 const KOREA = 410
 const YEARS = Array.from({ length: 11 }, (_, i) => 2015 + i)
 const FLOWS = ['X', 'M']
@@ -62,12 +72,18 @@ const skipChapters = process.argv.includes('--no-chapters')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let calls = 0
 
-async function getJson(url) {
+/** Earliest date of any cached response used, so the dataset's date isn't newer than its oldest part. */
+let oldest = null
+
+async function getJson(url, { text = false } = {}) {
   const key = createHash('sha1').update(url).digest('hex').slice(0, 16)
-  const file = new URL(`${key}.json`, CACHE)
+  const file = new URL(`${key}.${text ? 'txt' : 'json'}`, CACHE)
   if (!fresh) {
     try {
-      return JSON.parse(await readFile(file, 'utf8'))
+      const cached = await readFile(file, 'utf8')
+      const { mtime } = await stat(file)
+      if (!oldest || mtime < oldest) oldest = mtime
+      return text ? cached : JSON.parse(cached)
     } catch {
       // Not cached yet.
     }
@@ -80,7 +96,7 @@ async function getJson(url) {
     try {
       // The timeout covers reading the body too, so both sit inside the retry.
       res = await fetch(url, { signal: AbortSignal.timeout(90_000) })
-      if (res.status !== 429 && res.ok) body = await res.json()
+      if (res.status !== 429 && res.ok) body = text ? await res.text() : await res.json()
     } catch (e) {
       // Dropped connections and timeouts happen on long runs; retry like a rate limit.
       if (attempt >= 6) throw e
@@ -95,8 +111,8 @@ async function getJson(url) {
       continue
     }
     if (!res.ok) throw new Error(`${res.status} for ${url}`)
-    if (body.error) throw new Error(`${body.error} for ${url}`)
-    await writeFile(file, JSON.stringify(body))
+    if (!text && body.error) throw new Error(`${body.error} for ${url}`)
+    await writeFile(file, text ? body : JSON.stringify(body))
     return body
   }
 }
@@ -217,12 +233,13 @@ async function main() {
   const goods = skipChapters ? null : await goodsByReporter(full)
   const { gdp, capitals } = await gravityInputs(byPartner)
   const wb = await worldBank(new Set(['410', ...Object.keys(full.X[YEARS[YEARS.length - 1]] ?? {})]))
+  const pwt = await pennWorldTable(new Set(['410', ...Object.keys(goods?.totals ?? {}), ...Object.keys(goods?.bilateral.X ?? {})]))
 
   const out = {
     meta: {
       source: 'UN Comtrade, reporter: Republic of Korea, HS, annual, customs value in USD',
       unit: 'USD million',
-      fetched: new Date().toISOString().slice(0, 10),
+      fetched: (oldest ?? new Date()).toISOString().slice(0, 10),
       years: YEARS,
     },
     partners: byPartner,
@@ -234,6 +251,7 @@ async function main() {
     rca,
     gdp,
     capitals,
+    pwt,
   }
   await mkdir(new URL('.', OUT), { recursive: true })
   await writeFile(OUT, JSON.stringify(out))
@@ -354,6 +372,35 @@ async function worldBank(isos) {
     }
   }
   console.log(`World Bank series for ${Object.keys(out.agriVa ?? {}).length} partners`)
+  return out
+}
+
+/**
+ * Capital stock (USD billions at 2021 PPPs) and persons engaged (millions) by partner and year from the
+ * Penn World Table, for capital per worker. Countries PWT doesn't cover are skipped.
+ */
+async function pennWorldTable(isos) {
+  const out = { capital: {}, workers: {} }
+  for (const iso of [...isos].filter((i) => i !== '000').sort()) {
+    const a2 = countries.numericToAlpha2(iso)
+    if (!a2) continue
+    for (const [key, id] of Object.entries(PWT_SERIES)) {
+      let csv
+      try {
+        csv = await getJson(FRED_CSV + id(a2), { text: true })
+      } catch (e) {
+        console.warn(`  PWT ${key} for ${a2}: ${e.message}`)
+        continue
+      }
+      for (const line of csv.trim().split('\n').slice(1)) {
+        const [date, value] = line.split(',')
+        const year = Number(date.slice(0, 4))
+        if (year < YEARS[0] || !(Number(value) > 0)) continue
+        ;(out[key][iso] ??= {})[year] = key === 'capital' ? round(Number(value) / 1e3, 1) : round(Number(value), 3)
+      }
+    }
+  }
+  console.log(`Penn World Table for ${Object.keys(out.capital).length} countries (${calls} calls so far)`)
   return out
 }
 

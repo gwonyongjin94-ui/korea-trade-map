@@ -3,7 +3,7 @@ import { goodById } from '../../data/goods'
 import { SF_PRESETS, type SfPreset } from '../../data/sfPresets'
 import { DATA, pairOf, WORLD } from '../../data/trade'
 import { money } from '../../format'
-import { atPrice, autarkyPrice, distribution, utilityAt, withTrade, type Economy, type Group } from '../../model/specificFactors'
+import { atPrice, autarkyPrice, distribution, frontier, utilityAt, withTrade, type Economy, type Group } from '../../model/specificFactors'
 import { useI18n } from '../../i18n'
 import { SF_TEXT, type Names } from '../../sfText'
 import { GoodSelect } from '../GoodSelect'
@@ -201,7 +201,7 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
           <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <h3 className="mb-2 font-semibold">{s.ppfChart}</h3>
             <PpfChart
-              e={e}
+              points={frontier(e)}
               autarky={autarky}
               trade={trade}
               labels={{
@@ -279,7 +279,8 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
   )
 }
 
-function GroupCard({ title, g, names, icons, traded }: { title: string; g: Group; names: Names; icons: { C: string; F: string }; traded: boolean }) {
+/** One group's real income change in terms of each good and of the consumption bundle. Shared with the Heckscher–Ohlin tab. */
+export function GroupCard({ title, g, names, icons, traded }: { title: string; g: Group; names: { C: string; F: string }; icons: { C: string; F: string }; traded: boolean }) {
   const { lang } = useI18n()
   const s = SF_TEXT[lang]
   const tone = !traded ? 'slate' : g.verdict === 'gain' ? 'emerald' : g.verdict === 'loss' ? 'rose' : 'amber'
@@ -322,7 +323,7 @@ function GroupCard({ title, g, names, icons, traded }: { title: string; g: Group
   )
 }
 
-function Slider({
+export function Slider({
   label,
   value,
   min,

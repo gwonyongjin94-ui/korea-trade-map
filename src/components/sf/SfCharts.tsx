@@ -1,4 +1,4 @@
-import { frontier, mplC, mplF, type Economy, type Outcome, type Trade } from '../../model/specificFactors'
+import { mplC, mplF, type Economy, type Outcome } from '../../model/specificFactors'
 import { linear, ticks } from '../scale'
 
 const W = 560
@@ -104,17 +104,30 @@ export function LaborChart({ e, before, after, labels }: LaborProps) {
   )
 }
 
+/** The parts of a model's autarky and trade outcomes the frontier chart needs. */
+interface Point {
+  QC: number
+  QF: number
+}
+interface Traded extends Point {
+  p: number
+  gdp: number
+  DC: number
+  DF: number
+  exportsC: number
+}
+
 interface PpfProps {
-  e: Economy
-  autarky: Outcome
-  trade: Trade
+  /** Frontier points [Q_C, Q_F], from food only to cloth only. */
+  points: [number, number][]
+  autarky: Point
+  trade: Traded
   /** exports / imports: labels for the trade triangle's horizontal (C) and vertical (F) legs. */
   labels: { x: string; y: string; autarky: string; production: string; consumption: string; budget: string; exports: string; imports: string }
 }
 
 /** Production possibility frontier with the autarky point, production and consumption under trade. */
-export function PpfChart({ e, autarky, trade, labels }: PpfProps) {
-  const pts = frontier(e)
+export function PpfChart({ points: pts, autarky, trade, labels }: PpfProps) {
   const xMax = Math.max(pts[pts.length - 1][0], trade.DC, trade.QC) * 1.12
   const yMax = Math.max(pts[0][1], trade.DF, trade.QF) * 1.12
   const x = linear(0, xMax, M.left, W - 20)

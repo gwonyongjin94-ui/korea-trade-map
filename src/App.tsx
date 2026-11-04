@@ -4,6 +4,7 @@ import { ControlPanel } from './components/ControlPanel'
 import { RankTable } from './components/RankTable'
 import { StatCards, type Stat } from './components/StatCards'
 import { TradeMap, type LegendSpec } from './components/TradeMap'
+import { HeckscherOhlinTab } from './components/ho/HeckscherOhlinTab'
 import { RicardoTab } from './components/RicardoTab'
 import { SpecificFactorsTab } from './components/sf/SpecificFactorsTab'
 import { TheoryTab } from './components/theory/TheoryTab'
@@ -26,6 +27,7 @@ import {
 import { arrows as buildArrows, arrowScale, fills as buildFills, scales } from './derive'
 import { money, percent } from './format'
 import { KOREA } from './geo'
+import { HO_TEXT } from './hoText'
 import { countryFlag, countryName, LangContext, STRINGS, type Lang } from './i18n'
 import { SF_TEXT } from './sfText'
 import { THEORY_TEXT } from './theoryText'
@@ -36,8 +38,8 @@ const LAST = YEARS[YEARS.length - 1]
 const VIEWS: View[] = ['export', 'import', 'balance', 'total']
 const TABLE_ROWS = 20
 
-type Tab = 'map' | 'theory' | 'ricardo' | 'sf'
-const TABS: Tab[] = ['map', 'theory', 'ricardo', 'sf']
+type Tab = 'map' | 'theory' | 'ricardo' | 'sf' | 'ho'
+const TABS: Tab[] = ['map', 'theory', 'ricardo', 'sf', 'ho']
 
 function initialLang(): Lang {
   try {
@@ -286,12 +288,14 @@ export default function App() {
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200')
               }
             >
-              {k === 'sf' ? SF_TEXT[lang].tab : tt.tabs[k]}
+              {k === 'sf' ? SF_TEXT[lang].tab : k === 'ho' ? HO_TEXT[lang].tab : tt.tabs[k]}
             </button>
           ))}
         </nav>
 
-        {tab === 'sf' ? (
+        {tab === 'ho' ? (
+          <HeckscherOhlinTab year={year} />
+        ) : tab === 'sf' ? (
           <SpecificFactorsTab year={year} onYear={setYear} />
         ) : tab === 'ricardo' ? (
           <RicardoTab year={year} />

@@ -35,6 +35,8 @@ export interface TradeData {
   gdp?: Record<string, Record<string, number>>
   /** Capital city [longitude, latitude] by partner. */
   capitals?: Record<string, [number, number]>
+  /** Penn World Table: capital stock (USD billions, 2021 PPPs) and persons engaged (millions), by partner and year. */
+  pwt?: { capital: Record<string, Record<string, number>>; workers: Record<string, Record<string, number>> }
 }
 
 export const DATA = raw as unknown as TradeData
