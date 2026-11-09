@@ -16,6 +16,16 @@ export function capitalPerWorker(iso: string, year: number, d: TradeData = DATA)
   return K && L ? { year: K.year, value: K.value / L, K: K.value, L } : null
 }
 
+/**
+ * Capital (USD billions, Penn World Table) and arable land (thousands of hectares, World Bank) in the
+ * PWT year nearest to `year`: the endowments of the leather case, where land stands in for labour.
+ */
+export function landAndCapital(iso: string, year: number, d: TradeData = DATA): { year: number; K: number; T: number } | null {
+  const k = capitalPerWorker(iso, year, d)
+  const land = k && valueNear(d.wb?.arableHa?.[iso], k.year)
+  return k && land ? { year: k.year, K: k.K, T: land.value / 1000 } : null
+}
+
 /** Which HS chapters a test covers: all of them, or manufactures only (HS 28–96 without 71: no farm goods, minerals, fuels, gold or art). */
 export type Scope = 'all' | 'manufactures'
 

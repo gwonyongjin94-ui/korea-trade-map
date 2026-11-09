@@ -24,6 +24,7 @@ const WB_INDICATORS = {
   agriVa: 'NV.AGR.EMPL.KD', // agriculture, forestry and fishing value added per worker, constant 2015 USD
   indVa: 'NV.IND.EMPL.KD', // industry (incl. construction) value added per worker, constant 2015 USD
   arable: 'AG.LND.ARBL.HA.PC', // arable land, hectares per person
+  arableHa: 'AG.LND.ARBL.HA', // arable land, hectares (the leather case's land endowment)
   agriEmp: 'SL.AGR.EMPL.ZS', // employment in agriculture, % of total (modelled ILO estimate)
   labor: 'SL.TLF.TOTL.IN', // labour force, total (people)
 }

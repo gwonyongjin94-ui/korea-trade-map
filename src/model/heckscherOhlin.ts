@@ -62,9 +62,11 @@ export function produce(t: Tech, e: Endowment, p: number): Production {
   const k = e.K / e.L
   if (k >= Math.min(kC, kF) && k <= Math.max(kC, kF)) {
     // Both goods: each sector uses its own K/L, and full employment pins down how labour splits.
-    const LC = (e.L * (kF - k)) / (kF - kC)
+    // Clamped at zero: at the edge of the cone rounding can leave a sector a tiny negative input, and a
+    // negative number to a fractional power is NaN.
+    const LC = Math.min(e.L, Math.max(0, (e.L * (kF - k)) / (kF - kC)))
     const LF = e.L - LC
-    const KC = kC * LC
+    const KC = Math.min(e.K, kC * LC)
     const KF = e.K - KC
     const QC = KC ** t.sC * LC ** (1 - t.sC)
     const QF = KF ** t.sF * LF ** (1 - t.sF)

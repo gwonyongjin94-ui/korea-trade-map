@@ -7,7 +7,7 @@ import { atPrice, autarkyPrice, distribution, frontier, utilityAt, withTrade, ty
 import { useI18n } from '../../i18n'
 import { SF_TEXT, type Names } from '../../sfText'
 import { GoodSelect } from '../GoodSelect'
-import { LEATHER_CASE } from '../../leatherCase'
+import { LEATHER_CASE, LEATHER_LABELS } from '../../leatherCase'
 import { LeatherCase } from '../LeatherCase'
 import { KoreaCard } from './KoreaCard'
 import { LandCard } from './LandCard'
@@ -35,6 +35,8 @@ interface Chosen {
   F: string
   K: string
   T: string
+  /** Short names that replace the goods' HS names (the leather case). */
+  names?: { C: string; F: string }
 }
 
 export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y: number) => void }) {
@@ -53,16 +55,20 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
     setChosen(null)
   }
 
-  /** Pick goods: specific factors default to each sector's usual one, and real trade sets the price direction. */
-  const choose = (C: string, F: string) => {
+  /**
+   * Pick goods: specific factors default to each sector's usual one (or the given labels), and real trade
+   * sets the price direction.
+   */
+  const choose = (C: string, F: string, labels?: { C: string; F: string; K: string; T: string }) => {
     const gc = goodById(C)
     const gf = goodById(F)
     if (!gc || !gf) return
     setChosen({
       C,
       F,
-      K: chosen?.C === C ? chosen.K : gc.factor[lang],
-      T: chosen?.F === F ? chosen.T : gf.factor[lang],
+      K: labels?.K ?? (chosen?.C === C ? chosen.K : gc.factor[lang]),
+      T: labels?.T ?? (chosen?.F === F ? chosen.T : gf.factor[lang]),
+      names: labels ? { C: labels.C, F: labels.F } : undefined,
     })
     const sign = leansTo(koreaTrade(C, year), koreaTrade(F, year)) ? 1 : -1
     setGap(sign * (Math.abs(gap) || 30))
@@ -71,7 +77,9 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
   const goodC = chosen ? goodById(chosen.C) : undefined
   const goodF = chosen ? goodById(chosen.F) : undefined
   const names: Names =
-    chosen && goodC && goodF ? { C: shortName(goodC.name[lang]), F: shortName(goodF.name[lang]), K: chosen.K, T: chosen.T } : preset.names[lang]
+    chosen && goodC && goodF
+      ? { C: chosen.names?.C ?? shortName(goodC.name[lang]), F: chosen.names?.F ?? shortName(goodF.name[lang]), K: chosen.K, T: chosen.T }
+      : preset.names[lang]
   const icon = chosen && goodC && goodF ? { C: goodC.icon, F: goodF.icon } : preset.icons
   const tradeC = chosen ? koreaTrade(chosen.C, year) : null
   const tradeF = chosen ? koreaTrade(chosen.F, year) : null
@@ -104,9 +112,9 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
   return (
     <div className="space-y-6">
       <LeatherCase
-        active={chosen?.C === LEATHER_CASE.leather && chosen.F === LEATHER_CASE.other}
-        onLoad={() => choose(LEATHER_CASE.leather, LEATHER_CASE.other)}
-        withPartner={false}
+        active={chosen?.C === LEATHER_CASE.leather && chosen.F === LEATHER_CASE.other && chosen.names !== undefined}
+        onLoad={() => choose(LEATHER_CASE.leather, LEATHER_CASE.other, LEATHER_LABELS[lang])}
+        note="world"
       />
       <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-3">

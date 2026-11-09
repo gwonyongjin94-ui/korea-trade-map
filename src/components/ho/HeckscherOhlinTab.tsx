@@ -1,20 +1,21 @@
 import { useId, useMemo, useState } from 'react'
 import { goodById } from '../../data/goods'
 import { DATA, WORLD } from '../../data/trade'
-import { capitalPerWorker, revealedIntensity, sharesFromIntensity, type Scope } from '../../hoExamples'
+import { capitalPerWorker, landAndCapital, revealedIntensity, sharesFromIntensity, type Scope } from '../../hoExamples'
+import { HO_LAND_TEXT, LEATHER_HO_TEXT } from '../../hoLandText'
 import { HO_TEXT } from '../../hoText'
 import { countryFlag, countryName, useI18n, type Lang } from '../../i18n'
 import { KOREA } from '../../realExamples'
 import { GoodSelect } from '../GoodSelect'
-import { LEATHER_CASE } from '../../leatherCase'
+import { LEATHER_CASE, LEATHER_LABELS, LEATHER_TECH } from '../../leatherCase'
 import { LeatherCase } from '../LeatherCase'
 import { EndowmentCard } from './EndowmentCard'
 import { HoModel, type HoSetup } from './HoModel'
-import { perWorker, units } from './units'
+import { perHectare, perWorker, units } from './units'
 import { IntensityCard } from './IntensityCard'
 import { PartnerCard } from './PartnerCard'
 
-type Mode = 'textbook' | 'korea'
+type Mode = 'textbook' | 'korea' | 'leather'
 
 const DEFAULT_PARTNER = '704'
 /** Goods whose revealed capital intensities differ by less than this (in logs) can't be told apart. */
@@ -53,6 +54,26 @@ function koreaSetup(partner: string, g1: string, g2: string, year: number, kappa
   }
 }
 
+/**
+ * The leather case: Korea and the US with their real capital (USD billions) and arable land (thousands
+ * of hectares) in place of labour, hides as the land-intensive good C and cars as the capital-intensive F.
+ */
+function leatherSetup(year: number, lang: Lang): HoSetup | null {
+  const a = landAndCapital(KOREA, year)
+  const b = landAndCapital(LEATHER_CASE.partner, year)
+  const [C, F] = [goodById(LEATHER_CASE.leather), goodById(LEATHER_CASE.other)]
+  if (!a || !b || !C || !F) return null
+  const l = LEATHER_LABELS[lang]
+  return {
+    names: { A: countryName(KOREA, lang), B: countryName(LEATHER_CASE.partner, lang), C: l.C, F: l.F },
+    icons: { C: C.icon, F: F.icon },
+    e: { A: { K: a.K, L: a.T }, B: { K: b.K, L: b.T } },
+    t: LEATHER_TECH,
+    real: true,
+    factor: 'land',
+  }
+}
+
 /** Heckscher–Ohlin tab: the model on the textbook example or on Korea and a partner, then real-data checks. */
 export function HeckscherOhlinTab({ year }: { year: number }) {
   const { lang } = useI18n()
@@ -72,31 +93,30 @@ export function HeckscherOhlinTab({ year }: { year: number }) {
     [year, lang],
   )
   const setup = useMemo(
-    () => (mode === 'textbook' ? textbookSetup(lang) : koreaSetup(partner, goods.g1, goods.g2, year, kappa, lang)),
+    () =>
+      mode === 'textbook'
+        ? textbookSetup(lang)
+        : mode === 'leather'
+          ? leatherSetup(year, lang)
+          : koreaSetup(partner, goods.g1, goods.g2, year, kappa, lang),
     [mode, partner, goods, year, kappa, lang],
   )
   const ka = capitalPerWorker(KOREA, year)
   const kb = capitalPerWorker(partner, year)
   const u = units(true, lang)
 
-  const leather = mode === 'korea' && partner === LEATHER_CASE.partner && goods.g1 === LEATHER_CASE.leather && goods.g2 === LEATHER_CASE.other
+  const lt = LEATHER_HO_TEXT[lang]
+  const land = mode === 'leather' ? [KOREA, LEATHER_CASE.partner].map((iso) => [iso, landAndCapital(iso, year)] as const) : []
 
   return (
     <div className="space-y-6">
-      <LeatherCase
-        active={leather}
-        onLoad={() => {
-          setMode('korea')
-          setPartner(LEATHER_CASE.partner)
-          setGoods({ g1: LEATHER_CASE.leather, g2: LEATHER_CASE.other })
-        }}
-      />
+      <LeatherCase active={mode === 'leather'} onLoad={() => setMode('leather')} note="land" />
       <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-3xl">
             <h2 className="text-lg font-bold">{h.title}</h2>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{h.subtitle}</p>
-            <p className="mt-2 text-xs text-slate-400">{h.source}</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{mode === 'leather' ? HO_LAND_TEXT[lang].subtitle : h.subtitle}</p>
+            <p className="mt-2 text-xs text-slate-400">{mode === 'leather' ? HO_LAND_TEXT[lang].source : h.source}</p>
           </div>
           <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs dark:bg-slate-800" role="group" aria-label={h.presets.label}>
             {(['textbook', 'korea'] as const).map((k) => (
@@ -114,7 +134,28 @@ export function HeckscherOhlinTab({ year }: { year: number }) {
           </div>
         </div>
 
-        {mode === 'textbook' ? (
+        {mode === 'leather' ? (
+          <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm dark:bg-slate-800/50">
+            {land.every(([, v]) => v) ? (
+              <>
+                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{lt.real(land[0][1]!.year)}</div>
+                {land.map(([iso, v]) => (
+                  <div key={iso} className="mt-1 flex flex-wrap justify-between gap-x-3 tabular-nums">
+                    <span>
+                      {countryFlag(iso)} {countryName(iso, lang)}
+                    </span>
+                    <span className="text-slate-600 dark:text-slate-300">
+                      {lt.capital} {units(true, lang, 'land').K(v!.K)} · {lt.land} {units(true, lang, 'land').L(v!.T)} · {lt.perHa} {perHectare(v!.K / v!.T, lang)}
+                    </span>
+                  </div>
+                ))}
+                <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{lt.note(LEATHER_TECH.sC, LEATHER_TECH.sF, LEATHER_TECH.gamma)}</p>
+              </>
+            ) : (
+              <p className="text-xs text-slate-500 dark:text-slate-400">{lt.noData}</p>
+            )}
+          </div>
+        ) : mode === 'textbook' ? (
           <p className="mt-3 rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-200">
             <span className="font-semibold">📚 {h.presets.textbook}</span> · {h.textbookNote}
           </p>

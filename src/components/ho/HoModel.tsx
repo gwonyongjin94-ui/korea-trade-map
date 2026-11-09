@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { HO_LAND_TEXT } from '../../hoLandText'
 import { HO_TEXT, type Names } from '../../hoText'
 import { useI18n } from '../../i18n'
 import {
@@ -29,6 +30,8 @@ export interface HoSetup {
    * USD per worker and L/K workers per USD 1 million. Otherwise plain model units.
    */
   real: boolean
+  /** The second factor: labour (the default) or, in the leather case, arable land in thousands of hectares. */
+  factor?: 'labor' | 'land'
 }
 
 const f1 = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`
@@ -66,12 +69,13 @@ function rybczynskiStart(t: Tech, e: { A: Endowment; B: Endowment }): number {
  */
 export function HoModel({ setup }: { setup: HoSetup }) {
   const { lang } = useI18n()
-  const h = HO_TEXT[lang]
+  const land = setup.factor === 'land'
+  const h = (land ? HO_LAND_TEXT : HO_TEXT)[lang]
   const [e, setE] = useState(setup.e)
   const [t, setT] = useState(setup.t)
   const [grow, setGrow] = useState(() => rybczynskiStart(setup.t, setup.e))
   const { names, icons } = setup
-  const u = units(setup.real, lang)
+  const u = units(setup.real, lang, setup.factor)
 
   const pa = { A: autarkyPrice(t, e.A), B: autarkyPrice(t, e.B) }
   const pw = worldPrice(t, e.A, e.B)
@@ -216,10 +220,10 @@ export function HoModel({ setup }: { setup: HoSetup }) {
           {(['A', 'B'] as const).map((k) => (
             <div key={k} className="space-y-3">
               <div className={'text-xs font-semibold ' + (k === 'A' ? 'text-a' : 'text-b')}>
-                {h.endowments(names[k])} · K/L {u.k(e[k].K, e[k].L)}
+                {h.endowments(names[k])} · {h.ratio} {u.k(e[k].K, e[k].L)}
               </div>
               <Slider label={`🏦 ${h.capitalK}`} value={e[k].K} {...range(setup.e[k].K)} onChange={(v) => setEnd(k, 'K', v)} format={u.K} />
-              <Slider label={`👷 ${h.laborL}`} value={e[k].L} {...range(setup.e[k].L)} onChange={(v) => setEnd(k, 'L', v)} format={u.L} />
+              <Slider label={`${land ? '🌾' : '👷'} ${h.laborL}`} value={e[k].L} {...range(setup.e[k].L)} onChange={(v) => setEnd(k, 'L', v)} format={u.L} />
             </div>
           ))}
           <div className="space-y-3">

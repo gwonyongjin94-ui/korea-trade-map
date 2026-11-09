@@ -79,3 +79,25 @@ describe('Heckscher–Ohlin tests', () => {
     expect(Math.sqrt((sC / (1 - sC)) * (sF / (1 - sF)))).toBeCloseTo(0.5, 9)
   })
 })
+
+describe('the leather case (land in place of labour)', () => {
+  it('has Korea export cars and import hides, with both countries still making both goods', async () => {
+    const { landAndCapital } = await import('./hoExamples')
+    const { LEATHER_TECH } = await import('./leatherCase')
+    const { autarkyPrice, distribution, outcome, produce, worldPrice } = await import('./model/heckscherOhlin')
+    for (const year of [2015, 2019, 2023]) {
+      const a = landAndCapital('410', year)!
+      const b = landAndCapital('840', year)!
+      expect(a.K / a.T).toBeGreaterThan(5 * (b.K / b.T)) // Korea: far more capital per hectare
+      const [A, B] = [{ K: a.K, L: a.T }, { K: b.K, L: b.T }]
+      const pw = worldPrice(LEATHER_TECH, A, B)
+      const [ta, tb] = [outcome(LEATHER_TECH, A, pw), outcome(LEATHER_TECH, B, pw)]
+      expect(ta.only).toBeNull()
+      expect(tb.only).toBeNull()
+      expect(ta.exportsC).toBeLessThan(0) // Korea imports hides
+      const d = distribution(LEATHER_TECH, produce(LEATHER_TECH, A, autarkyPrice(LEATHER_TECH, A)), ta)
+      expect(d.labor.verdict).toBe('loss') // Korean landowners lose
+      expect(d.capital.verdict).toBe('gain') // Korean capital owners gain
+    }
+  })
+})

@@ -265,7 +265,8 @@ export function PpfChart({ points: pts, autarky, trade, labels, format }: PpfPro
         {labels.x}
       </text>
       <text transform={`translate(14,${(M.top + H - M.bottom) / 2}) rotate(-90)`} textAnchor="middle" className="fill-current text-[12px]">
-        {labels.y}
+        {/* Colour emoji don't rotate with the text in Chrome and land on the tick labels, so drop the icon here. */}
+        {labels.y.replace(/^\p{Extended_Pictographic}️?\s*/u, '')}
       </text>
 
       <path d={ppf} fill="none" strokeWidth={2.5} className="stroke-slate-700 dark:stroke-slate-200" />

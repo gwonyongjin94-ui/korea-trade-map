@@ -40,6 +40,8 @@ const ko = {
   },
   setup: '경제 설정',
   endowments: (n: string) => `${n}의 부존량`,
+  /** The endowment ratio shown next to each country's endowments. */
+  ratio: 'K/L',
   capitalK: '자본 (K)',
   laborL: '노동 (L)',
   shares: '기술과 취향 (두 나라 공통)',
@@ -234,6 +236,7 @@ const en: HoText = {
   },
   setup: 'Economy',
   endowments: (n) => `${n}’s endowments`,
+  ratio: 'K/L',
   capitalK: 'Capital (K)',
   laborL: 'Labor (L)',
   shares: 'Technology and tastes (shared)',
