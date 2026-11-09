@@ -29,6 +29,11 @@ const WB_INDICATORS = {
   labor: 'SL.TLF.TOTL.IN', // labour force, total (people)
 }
 /**
+ * World Bank values that break their own series, left out so the models fall back to the nearest good
+ * year: Korea's arable land jumps from 1.32M ha (2022) to 1.456M (2023) and back to 1.30M (2024).
+ */
+const WB_DROP = { arable: { 410: ['2023'] }, arableHa: { 410: ['2023'] } }
+/**
  * Penn World Table 11.0 series as republished by FRED (no key needed), by ISO alpha-2 code:
  * capital stock at current PPPs (millions of 2021 USD) and persons engaged (millions).
  */
@@ -368,7 +373,7 @@ async function worldBank(isos) {
     const [, rows] = await getJson(`https://api.worldbank.org/v2/country/all/indicator/${code}?format=json&date=${YEARS[0]}:${YEARS[YEARS.length - 1]}&per_page=20000`)
     for (const r of rows ?? []) {
       const iso = r.countryiso3code && countries.alpha3ToNumeric(r.countryiso3code)
-      if (!iso || !isos.has(iso) || r.value === null) continue
+      if (!iso || !isos.has(iso) || r.value === null || WB_DROP[key]?.[iso]?.includes(r.date)) continue
       ;((out[key] ??= {})[iso] ??= {})[r.date] = round(r.value, 3)
     }
   }

@@ -82,12 +82,11 @@ describe('Heckscher–Ohlin tests', () => {
 
 describe('the leather case (land in place of labour)', () => {
   it('has Korea export cars and import hides, with both countries still making both goods', async () => {
-    const { landAndCapital } = await import('./hoExamples')
+    const { landAndCapitalAt } = await import('./hoExamples')
     const { LEATHER_TECH } = await import('./leatherCase')
     const { autarkyPrice, distribution, outcome, produce, worldPrice } = await import('./model/heckscherOhlin')
     for (const year of [2015, 2019, 2023]) {
-      const a = landAndCapital('410', year)!
-      const b = landAndCapital('840', year)!
+      const [a, b] = landAndCapitalAt(['410', '840'], year)!
       expect(a.K / a.T).toBeGreaterThan(5 * (b.K / b.T)) // Korea: far more capital per hectare
       const [A, B] = [{ K: a.K, L: a.T }, { K: b.K, L: b.T }]
       const pw = worldPrice(LEATHER_TECH, A, B)
@@ -99,5 +98,20 @@ describe('the leather case (land in place of labour)', () => {
       expect(d.labor.verdict).toBe('loss') // Korean landowners lose
       expect(d.capital.verdict).toBe('gain') // Korean capital owners gain
     }
+  })
+
+  it("uses one year for both countries and skips Korea's 2023 arable-land outlier", async () => {
+    const { landAndCapital, landAndCapitalAt } = await import('./hoExamples')
+    const { DATA } = await import('./data/trade')
+    expect(DATA.wb?.arableHa?.['410']?.['2023']).toBeUndefined()
+    expect(DATA.wb?.arable?.['410']?.['2023']).toBeUndefined()
+    for (const year of [2023, 2025]) {
+      const pair = landAndCapitalAt(['410', '840'], year)!
+      expect(pair.map((e) => e.year)).toEqual([2022, 2022])
+      expect(pair[0].T).toBe(1320) // thousands of hectares
+      expect(pair[0].K / pair[0].T).toBeGreaterThan(20 * (pair[1].K / pair[1].T))
+    }
+    expect(landAndCapital('840', 2023)!.year).toBe(2023) // alone, the US keeps its own latest year
+    expect(landAndCapitalAt(['410', '840'], 2019)!.map((e) => e.year)).toEqual([2019, 2019])
   })
 })

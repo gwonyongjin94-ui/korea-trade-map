@@ -16,14 +16,46 @@ export function capitalPerWorker(iso: string, year: number, d: TradeData = DATA)
   return K && L ? { year: K.year, value: K.value / L, K: K.value, L } : null
 }
 
+export interface LandAndCapital {
+  year: number
+  /** Capital stock, USD billions (Penn World Table). */
+  K: number
+  /** Arable land, thousands of hectares (World Bank). */
+  T: number
+}
+
 /**
- * Capital (USD billions, Penn World Table) and arable land (thousands of hectares, World Bank) in the
- * PWT year nearest to `year`: the endowments of the leather case, where land stands in for labour.
+ * Capital and arable land from one and the same year: the latest year up to `year` that has both
+ * (or the first year with both, if `year` comes before it). These are the endowments of the leather
+ * case, where land stands in for labour.
  */
-export function landAndCapital(iso: string, year: number, d: TradeData = DATA): { year: number; K: number; T: number } | null {
-  const k = capitalPerWorker(iso, year, d)
-  const land = k && valueNear(d.wb?.arableHa?.[iso], k.year)
-  return k && land ? { year: k.year, K: k.K, T: land.value / 1000 } : null
+export function landAndCapital(iso: string, year: number, d: TradeData = DATA): LandAndCapital | null {
+  const capital = d.pwt?.capital[iso]
+  const land = d.wb?.arableHa?.[iso]
+  if (!capital || !land) return null
+  const years = Object.keys(capital)
+    .map(Number)
+    .filter((y) => land[y] != null)
+    .sort((a, b) => a - b)
+  const y = [...years].reverse().find((v) => v <= year) ?? years[0]
+  return y == null ? null : { year: y, K: capital[y], T: land[y] / 1000 }
+}
+
+/**
+ * landAndCapital for several countries in one common year, the latest year up to `year` that all of
+ * them have, so one country's newer data never sits next to another's older data.
+ */
+export function landAndCapitalAt(isos: string[], year: number, d: TradeData = DATA): LandAndCapital[] | null {
+  let y = year
+  for (;;) {
+    const es = isos.map((iso) => landAndCapital(iso, y, d))
+    if (es.some((e) => !e)) return null
+    const ok = es as LandAndCapital[]
+    const common = Math.min(...ok.map((e) => e.year))
+    if (ok.every((e) => e.year === common)) return ok
+    if (common >= y) return null // no year that all of them have
+    y = common
+  }
 }
 
 /** Which HS chapters a test covers: all of them, or manufactures only (HS 28–96 without 71: no farm goods, minerals, fuels, gold or art). */

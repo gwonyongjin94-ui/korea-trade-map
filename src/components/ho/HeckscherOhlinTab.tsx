@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import { goodById } from '../../data/goods'
 import { DATA, WORLD } from '../../data/trade'
-import { capitalPerWorker, landAndCapital, revealedIntensity, sharesFromIntensity, type Scope } from '../../hoExamples'
+import { capitalPerWorker, landAndCapitalAt, revealedIntensity, sharesFromIntensity, type Scope } from '../../hoExamples'
 import { HO_LAND_TEXT, LEATHER_HO_TEXT } from '../../hoLandText'
 import { HO_TEXT } from '../../hoText'
 import { countryFlag, countryName, useI18n, type Lang } from '../../i18n'
@@ -59,8 +59,7 @@ function koreaSetup(partner: string, g1: string, g2: string, year: number, kappa
  * of hectares) in place of labour, hides as the land-intensive good C and cars as the capital-intensive F.
  */
 function leatherSetup(year: number, lang: Lang): HoSetup | null {
-  const a = landAndCapital(KOREA, year)
-  const b = landAndCapital(LEATHER_CASE.partner, year)
+  const [a, b] = landAndCapitalAt([KOREA, LEATHER_CASE.partner], year) ?? []
   const [C, F] = [goodById(LEATHER_CASE.leather), goodById(LEATHER_CASE.other)]
   if (!a || !b || !C || !F) return null
   const l = LEATHER_LABELS[lang]
@@ -106,7 +105,8 @@ export function HeckscherOhlinTab({ year }: { year: number }) {
   const u = units(true, lang)
 
   const lt = LEATHER_HO_TEXT[lang]
-  const land = mode === 'leather' ? [KOREA, LEATHER_CASE.partner].map((iso) => [iso, landAndCapital(iso, year)] as const) : []
+  const pair = mode === 'leather' ? landAndCapitalAt([KOREA, LEATHER_CASE.partner], year) : null
+  const land = mode === 'leather' ? [KOREA, LEATHER_CASE.partner].map((iso, i) => [iso, pair?.[i] ?? null] as const) : []
 
   return (
     <div className="space-y-6">
