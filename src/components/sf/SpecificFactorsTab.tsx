@@ -7,6 +7,8 @@ import { atPrice, autarkyPrice, distribution, frontier, utilityAt, withTrade, ty
 import { useI18n } from '../../i18n'
 import { SF_TEXT, type Names } from '../../sfText'
 import { GoodSelect } from '../GoodSelect'
+import { LEATHER_CASE } from '../../leatherCase'
+import { LeatherCase } from '../LeatherCase'
 import { KoreaCard } from './KoreaCard'
 import { LandCard } from './LandCard'
 import { MigrationCard } from './MigrationCard'
@@ -101,6 +103,11 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
 
   return (
     <div className="space-y-6">
+      <LeatherCase
+        active={chosen?.C === LEATHER_CASE.leather && chosen.F === LEATHER_CASE.other}
+        onLoad={() => choose(LEATHER_CASE.leather, LEATHER_CASE.other)}
+        withPartner={false}
+      />
       <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-3xl">
@@ -181,7 +188,7 @@ export function SpecificFactorsTab({ year, onYear }: { year: number; onYear: (y:
           <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
             <h3 className="font-semibold">{s.laborChart}</h3>
             <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-              {s.laborChartNote(`${icon.C} ${names.C}`, `${icon.F} ${names.F}`)} {s.wageUnit}
+              {s.laborChartNote(`${icon.C} ${names.C}`, `${icon.F} ${names.F}`)} {s.wageUnit(names.F)}
             </p>
             <LaborChart
               e={e}

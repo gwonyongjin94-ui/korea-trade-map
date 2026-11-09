@@ -3,6 +3,7 @@ import { HO_TEXT, type Names } from '../../hoText'
 import { useI18n } from '../../i18n'
 import {
   autarkyPrice,
+  capitalPerWorker,
   distribution,
   frontier,
   outcome,
@@ -31,10 +32,31 @@ export interface HoSetup {
 }
 
 const f1 = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`
+/** Frontier ticks: real-data outputs run to tens of thousands of model units, so abbreviate them. */
+const qty = (lang: string) => (v: number) =>
+  v === 0 ? '0' : v < 1e4 ? v.toLocaleString(lang === 'ko' ? 'ko-KR' : 'en-US', { maximumFractionDigits: v >= 10 ? 0 : 2 }) : lang === 'ko' ? `${+(v / 1e4).toFixed(1)}만` : `${+(v / 1e3).toFixed(0)}k`
 const sig = (v: number) => (v >= 100 ? v.toFixed(0) : v.toPrecision(3))
 const span = (g: Group) => {
   const [lo, hi] = [Math.min(g.inC, g.inF), Math.max(g.inC, g.inF)]
   return `${f1(lo)}~${f1(hi)}`
+}
+
+/**
+ * Where the Rybczynski card holds prices: the world price, in a country that still makes both goods
+ * there (Home first); if both specialize, Home's autarky price instead.
+ */
+function rybczynskiAt(t: Tech, e: { A: Endowment; B: Endowment }) {
+  const pw = worldPrice(t, e.A, e.B)
+  const k = (['A', 'B'] as const).find((c) => produce(t, e[c], pw).only === null)
+  return k ? { k, p: pw, atWorld: true } : { k: 'A' as const, p: autarkyPrice(t, e.A), atWorld: false }
+}
+
+/** A first capital increase for the Rybczynski card, at most +20%, that keeps the country making both goods. */
+function rybczynskiStart(t: Tech, e: { A: Endowment; B: Endowment }): number {
+  const { k, p } = rybczynskiAt(t, e)
+  const omega = produce(t, e[k], p).omega
+  const room = Math.max(capitalPerWorker(t.sC, omega), capitalPerWorker(t.sF, omega)) / (e[k].K / e[k].L) - 1
+  return Math.min(0.2, Math.max(0.01, Math.floor(room * 0.8 * 100) / 100))
 }
 
 /**
@@ -47,7 +69,7 @@ export function HoModel({ setup }: { setup: HoSetup }) {
   const h = HO_TEXT[lang]
   const [e, setE] = useState(setup.e)
   const [t, setT] = useState(setup.t)
-  const [grow, setGrow] = useState(0.2)
+  const [grow, setGrow] = useState(() => rybczynskiStart(setup.t, setup.e))
   const { names, icons } = setup
   const u = units(setup.real, lang)
 
@@ -63,9 +85,8 @@ export function HoModel({ setup }: { setup: HoSetup }) {
   const fpe = trade.A.only === null && trade.B.only === null
   const only = (['A', 'B'] as const).filter((k) => trade[k].only !== null).map((k) => names[k])
   const edited = JSON.stringify({ e, t }) !== JSON.stringify({ e: setup.e, t: setup.t })
-  // Rybczynski at the world price: in a country that still makes both goods there, Home first.
-  const rybFor = (['A', 'B'] as const).find((k) => trade[k].only === null)
-  const ref = trade[rybFor ?? 'A']
+  const at = rybczynskiAt(t, e)
+  const ref = trade[at.k]
   const lkAt = (s: number) => sig((1 - s) / s / ref.omega)
   const exportGood = (k: 'A' | 'B') => (trade[k].exportsC > 0 ? 'C' : 'F')
   // Groups whose outcome departs from Stolper–Samuelson (the abundant factor gains, the scarce one loses),
@@ -116,14 +137,12 @@ export function HoModel({ setup }: { setup: HoSetup }) {
     </div>
   )
 
-  // If both countries specialize at the world price, show the effect at Home's autarky price instead.
   const ryb = (() => {
-    const k = rybFor ?? 'A'
-    const p = rybFor ? pw : pa.A
+    const { k, p } = at
     const before = produce(t, e[k], p)
     const after = produce(t, { ...e[k], K: e[k].K * (1 + grow) }, p)
     const pct = (a: number, b: number) => (b > 0 ? f1((a / b - 1) * 100) : '—')
-    return { k, p, atWorld: rybFor !== undefined, before, after, df: pct(after.QF, before.QF), dc: pct(after.QC, before.QC) }
+    return { ...at, before, after, df: pct(after.QF, before.QF), dc: pct(after.QC, before.QC) }
   })()
 
   return (
@@ -217,7 +236,7 @@ export function HoModel({ setup }: { setup: HoSetup }) {
           {(['A', 'B'] as const).map((k) => (
             <div key={k} className="min-w-0">
               <h3 className={'mb-2 font-semibold ' + (k === 'A' ? 'text-a' : 'text-b')}>{h.ppf(names[k])}</h3>
-              <PpfChart points={frontier(t, e[k])} autarky={aut[k]} trade={trade[k]} labels={ppfLabels(k)} />
+              <PpfChart points={frontier(t, e[k])} autarky={aut[k]} trade={trade[k]} labels={ppfLabels(k)} format={qty(lang)} />
             </div>
           ))}
         </div>
@@ -262,7 +281,7 @@ export function HoModel({ setup }: { setup: HoSetup }) {
             labels={{ L: h.laborL, K: h.capitalK, before: h.ryb.before, after: h.ryb.after, originC: h.ryb.originC(names.C), originF: h.ryb.originF(names.F) }}
           />
           <div className="space-y-3">
-            <Slider label={`🏦 ${h.ryb.slider}`} value={grow} min={0} max={1} step={0.05} onChange={setGrow} format={(v) => `+${Math.round(v * 100)}%`} />
+            <Slider label={`🏦 ${h.ryb.slider}`} value={grow} min={0} max={1} step={0.01} onChange={setGrow} format={(v) => `+${Math.round(v * 100)}%`} />
             <dl className="space-y-1.5 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800/50">
               {(
                 [

@@ -6,6 +6,8 @@ import { HO_TEXT } from '../../hoText'
 import { countryFlag, countryName, useI18n, type Lang } from '../../i18n'
 import { KOREA } from '../../realExamples'
 import { GoodSelect } from '../GoodSelect'
+import { LEATHER_CASE } from '../../leatherCase'
+import { LeatherCase } from '../LeatherCase'
 import { EndowmentCard } from './EndowmentCard'
 import { HoModel, type HoSetup } from './HoModel'
 import { perWorker, units } from './units'
@@ -77,8 +79,18 @@ export function HeckscherOhlinTab({ year }: { year: number }) {
   const kb = capitalPerWorker(partner, year)
   const u = units(true, lang)
 
+  const leather = mode === 'korea' && partner === LEATHER_CASE.partner && goods.g1 === LEATHER_CASE.leather && goods.g2 === LEATHER_CASE.other
+
   return (
     <div className="space-y-6">
+      <LeatherCase
+        active={leather}
+        onLoad={() => {
+          setMode('korea')
+          setPartner(LEATHER_CASE.partner)
+          setGoods({ g1: LEATHER_CASE.leather, g2: LEATHER_CASE.other })
+        }}
+      />
       <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="max-w-3xl">

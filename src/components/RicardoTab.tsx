@@ -4,6 +4,8 @@ import { ricardoGoods, ricardoTest } from '../realExamples'
 import { setupFromGoods, setupFromProductivity } from '../ricardo/fromData'
 import { RicardoModel } from '../ricardo/RicardoModel'
 import { THEORY_TEXT } from '../theoryText'
+import { LEATHER_CASE } from '../leatherCase'
+import { LeatherCase } from './LeatherCase'
 import { RicardoRealCard, type RicardoMode } from './RicardoRealCard'
 
 const DEFAULT_PARTNER = '704'
@@ -30,8 +32,18 @@ export function RicardoTab({ year }: { year: number }) {
     [mode, partner, goods, year, lang],
   )
 
+  const leather = mode === 'goods' && partner === LEATHER_CASE.partner && goods.x === LEATHER_CASE.leather && goods.y === LEATHER_CASE.other
+
   return (
     <div className="space-y-6">
+      <LeatherCase
+        active={leather}
+        onLoad={() => {
+          setMode('goods')
+          setPick(LEATHER_CASE.partner)
+          setGoods({ x: LEATHER_CASE.leather, y: LEATHER_CASE.other })
+        }}
+      />
       <RicardoRealCard
         year={year}
         mode={mode}

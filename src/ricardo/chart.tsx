@@ -40,7 +40,8 @@ export function Frame({ width, height, xMax, yMax, xLabel, yLabel, format, child
         {xLabel}
       </text>
       <text
-        transform={`translate(14,${(MARGIN.top + height - MARGIN.bottom) / 2}) rotate(-90)`}
+        // Rotated, the title's glyphs hang left of x; at 11 they clear tick labels like "4,000".
+        transform={`translate(11,${(MARGIN.top + height - MARGIN.bottom) / 2}) rotate(-90)`}
         textAnchor="middle"
         className="fill-current text-[12px]"
       >

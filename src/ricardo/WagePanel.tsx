@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { fmt } from './format'
 import { useRicardoText } from './text'
 import type { CountryKey, GoodKey, ModelResult } from '../model/ricardian'
+import { placeLabels, type Spot } from '../components/labels'
 
 interface Props {
   names: { A: string; B: string; X: string; Y: string }
@@ -154,11 +155,38 @@ function WageLine({ names, icons, result }: Props) {
   const x = (v: number) => 16 + ((Math.log(v) - d0) / (d1 - d0)) * (W - 32)
   const axisY = 64
   const [bLo, bHi] = result.relativeWage.bounds
-  // Put the lower ratio's label on the left and the higher on the right so they never collide.
+  // The lower ratio's label goes left of its tick and the higher one right, then they move up a row
+  // or swap sides if that would run off the panel.
   const ticks = [
-    { g: 'X' as const, v: r.X, anchor: r.X <= r.Y ? ('end' as const) : ('start' as const) },
-    { g: 'Y' as const, v: r.Y, anchor: r.Y < r.X ? ('end' as const) : ('start' as const) },
+    { g: 'X' as const, v: r.X, low: r.X <= r.Y },
+    { g: 'Y' as const, v: r.Y, low: r.Y < r.X },
   ]
+  const ratioText = (g: GoodKey) => `${icons[g]} ${t.wages.ratio(names[g], fmt(r[g], lang))}`
+  const valueText = `w${names.A}/w${names.B} = ${fmt(value, lang)}`
+  const side = (low: boolean, dy: number): Spot[] => {
+    const left: Spot = { dx: -4, dy, anchor: 'end' }
+    const right: Spot = { dx: 4, dy, anchor: 'start' }
+    return low ? [left, right] : [right, left]
+  }
+  const tags = placeLabels(
+    [
+      ...ticks.map(({ g, v, low }) => ({ id: g, x: x(v), y: axisY - 26, text: ratioText(g), size: 11, spots: [...side(low, 0), ...side(low, -14)] })),
+      {
+        id: 'w',
+        x: x(value),
+        y: axisY + 36,
+        text: valueText,
+        size: 12,
+        bold: true,
+        spots: [
+          { dx: 0, dy: 0, anchor: 'middle' as const },
+          { dx: -10, dy: 0, anchor: 'start' as const },
+          { dx: 10, dy: 0, anchor: 'end' as const },
+        ],
+      },
+    ],
+    { x: 0, y: 0, w: W, h: H },
+  )
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full overflow-visible" role="img" aria-label={t.wages.relTitle}>
@@ -179,28 +207,22 @@ function WageLine({ names, icons, result }: Props) {
           </text>
         </g>
       )}
-      {ticks.map(({ g, v, anchor }) => (
+      {ticks.map(({ g, v }) => (
         <g key={g}>
-          <line x1={x(v)} x2={x(v)} y1={axisY - 22} y2={axisY + 8} className="stroke-slate-500" strokeDasharray="3 2" />
-          <text
-            x={x(v) + (anchor === 'end' ? -4 : 4)}
-            y={axisY - 26}
-            textAnchor={anchor}
-            className="fill-slate-600 text-[11px] dark:fill-slate-300"
-          >
-            {icons[g]} {t.wages.ratio(names[g], fmt(v, lang))}
-          </text>
+          <line x1={x(v)} x2={x(v)} y1={axisY - 22 - (tags[g] && tags[g].y < axisY - 30 ? 14 : 0)} y2={axisY + 8} className="stroke-slate-500" strokeDasharray="3 2" />
+          {tags[g] && (
+            <text x={tags[g].x} y={tags[g].y} textAnchor={tags[g].anchor} className="fill-slate-600 text-[11px] dark:fill-slate-300">
+              {ratioText(g)}
+            </text>
+          )}
         </g>
       ))}
       <circle cx={x(value)} cy={axisY} r={7} className="fill-emerald-500" stroke="white" strokeWidth={2} />
-      <text
-        x={x(value)}
-        y={axisY + 36}
-        textAnchor="middle"
-        className="fill-emerald-700 text-[12px] font-semibold dark:fill-emerald-400"
-      >
-        w{names.A}/w{names.B} = {fmt(value, lang)}
-      </text>
+      {tags.w && (
+        <text x={tags.w.x} y={tags.w.y} textAnchor={tags.w.anchor} className="fill-emerald-700 text-[12px] font-semibold dark:fill-emerald-400">
+          {valueText}
+        </text>
+      )}
     </svg>
   )
 }

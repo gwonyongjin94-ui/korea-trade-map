@@ -57,7 +57,7 @@ export function RicardoModel({ setup, isos, title }: Props) {
 
       {ready && <Headline names={names} icons={icons} result={result} />}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
           {ready && (
             // Three charts side by side on wide screens, as in the explorer; RS–RD wraps to half width below.
@@ -77,7 +77,7 @@ export function RicardoModel({ setup, isos, title }: Props) {
             </div>
           )}
         </div>
-        <aside className="rounded-2xl border border-slate-200 bg-white p-5 lg:self-start dark:border-slate-800 dark:bg-slate-900">
+        <aside className="rounded-2xl border border-slate-200 bg-white p-5 xl:self-start dark:border-slate-800 dark:bg-slate-900">
           <ModelInputs
             names={names}
             unit={setup.unit}

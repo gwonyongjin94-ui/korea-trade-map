@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { overlaps, type Box } from '../../arrows'
+import { around, dot, HALO, placeLabels, textWidth } from '../labels'
 
 export interface ScatterPoint {
   iso: string
@@ -54,19 +54,54 @@ export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, mar
   const sx = (v: number) => M.left + ((Math.log(v) - Math.log(x0)) / (Math.log(x1) - Math.log(x0))) * (W - M.left - M.right)
   const sy = (v: number) => H - M.bottom - ((Math.log(v) - Math.log(y0)) / (Math.log(y1) - Math.log(y0))) * (H - M.top - M.bottom)
 
-  // Label the selected dot first, then the largest, skipping any that would overlap.
-  const placed: Box[] = []
-  const labels = [...points]
-    .filter((p) => p.label)
-    .sort((a, b) => Number(b.iso === selected) - Number(a.iso === selected) || b.y - a.y)
-    .map((p) => {
-      const w = [...p.label!].reduce((s, ch) => s + (/[ㄱ-힣]/.test(ch) ? 11 : 6.5), 6)
-      const box = { x: sx(p.x) + 6, y: sy(p.y) - 8, w, h: 15 }
-      if (box.x + box.w > W - 4 || placed.some((b) => overlaps(b, box))) return null
-      placed.push(box)
-      return { ...p, bx: box.x, by: box.y + 11 }
-    })
-    .filter((l) => l !== null)
+  // Label the selected dot first, then the rest from the top down. Each label tries the sides of its
+  // dot in turn and is skipped when it would cover another label, a dot or the key.
+  const radius = (iso: string) => (iso === selected ? 7 : 4.5)
+  const keyW = line ? textWidth(line.label, 11) + 30 : 0
+  const plot = { x: M.left + 2, y: M.top, w: W - M.left - M.right - 2, h: H - M.top - M.bottom }
+  const dots = points.map((p) => dot(sx(p.x), sy(p.y), radius(p.iso) + 1))
+  const key = line ? [{ x: W - M.right - keyW, y: M.top, w: keyW, h: 18 }] : []
+  // Reference lines are labelled at the top, beside the line, on whichever side the key leaves free.
+  const markTags = placeLabels(
+    marks.map((m) => ({
+      id: m.label,
+      x: sx(m.x),
+      y: M.top,
+      text: m.label,
+      size: 11,
+      bold: true,
+      spots: [10, 24, 38].flatMap((dy) => [
+        { dx: 4, dy, anchor: 'start' as const },
+        { dx: -4, dy, anchor: 'end' as const },
+      ]),
+    })),
+    plot,
+    [...key, ...dots],
+  )
+  const avoid = [...dots, ...key, ...Object.values(markTags).map((t) => t.box)]
+  const placed = placeLabels(
+    [...points]
+      .filter((p) => p.label)
+      .sort((a, b) => Number(b.iso === selected) - Number(a.iso === selected) || b.y - a.y)
+      .map((p) => ({
+        id: p.iso,
+        x: sx(p.x),
+        y: sy(p.y),
+        text: p.label!,
+        size: 11,
+        bold: p.iso === selected,
+        optional: p.iso !== selected,
+        spots: around(radius(p.iso), 11),
+      })),
+    plot,
+    avoid,
+  )
+  const labels = points.filter((p) => placed[p.iso]).map((p) => ({ ...p, ...placed[p.iso] }))
+
+  const xAnchor = (v: number) => {
+    const half = textWidth(formatX(v), 11) / 2
+    return sx(v) + half > W - 2 ? 'end' : sx(v) - half < 2 ? 'start' : 'middle'
+  }
 
   const tip = hover ? tooltip(hover.iso) : null
 
@@ -76,7 +111,8 @@ export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, mar
         {logTicks(x0, x1).map((v) => (
           <g key={`x${v}`}>
             <line x1={sx(v)} x2={sx(v)} y1={M.top} y2={H - M.bottom} className="stroke-slate-200 dark:stroke-slate-800" />
-            <text x={sx(v)} y={H - M.bottom + 16} textAnchor="middle" className="fill-current text-[11px]">
+            {/* Edge ticks are anchored inward so long labels like "10,000억$" stay inside. */}
+            <text x={sx(v)} y={H - M.bottom + 16} textAnchor={xAnchor(v)} className="fill-current text-[11px]">
               {formatX(v)}
             </text>
           </g>
@@ -111,9 +147,11 @@ export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, mar
         {marks.map((m) => (
           <g key={m.label}>
             <line x1={sx(m.x)} x2={sx(m.x)} y1={M.top} y2={H - M.bottom} strokeWidth={1.5} strokeDasharray="2 3" className="stroke-slate-900 dark:stroke-white" />
-            <text x={sx(m.x) + 4} y={M.top + 10} className="fill-slate-700 text-[11px] font-semibold dark:fill-slate-200">
-              {m.label}
-            </text>
+            {markTags[m.label] && (
+              <text x={markTags[m.label].x} y={markTags[m.label].y} textAnchor={markTags[m.label].anchor} className={`fill-slate-700 text-[11px] font-semibold dark:fill-slate-200 ${HALO}`}>
+                {m.label}
+              </text>
+            )}
           </g>
         ))}
 
@@ -136,24 +174,23 @@ export function LogScatter({ points, xLabel, yLabel, formatX, formatY, line, mar
         {labels.map((l) => (
           <text
             key={l.iso}
-            x={l.bx}
-            y={l.by}
-            className={'pointer-events-none stroke-white text-[11px] dark:stroke-slate-900 ' + (l.iso === selected ? 'fill-slate-900 font-bold dark:fill-white' : 'fill-slate-600 dark:fill-slate-300')}
-            strokeWidth={3}
-            paintOrder="stroke"
+            x={l.x}
+            y={l.y}
+            textAnchor={l.anchor}
+            className={`pointer-events-none text-[11px] ${HALO} ` + (l.iso === selected ? 'fill-slate-900 font-bold dark:fill-white' : 'fill-slate-600 dark:fill-slate-300')}
           >
             {l.label}
           </text>
         ))}
+        {line && (
+          <g className="pointer-events-none">
+            <line x1={W - M.right - 24} x2={W - M.right - 4} y1={M.top + 9} y2={M.top + 9} strokeWidth={2} strokeDasharray="5 3" className="stroke-slate-500" />
+            <text x={W - M.right - 30} y={M.top + 9} dy="0.32em" textAnchor="end" className={`fill-slate-500 text-[11px] dark:fill-slate-400 ${HALO}`}>
+              {line.label}
+            </text>
+          </g>
+        )}
       </svg>
-      {line && (
-        <div className="pointer-events-none absolute top-1 right-3 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-          <svg width="20" height="4" aria-hidden>
-            <line x1="0" y1="2" x2="20" y2="2" strokeWidth="2" strokeDasharray="5 3" className="stroke-slate-500" />
-          </svg>
-          {line.label}
-        </div>
-      )}
       {tip && hover && (
         <div
           className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md bg-slate-900/90 px-2.5 py-1.5 text-xs whitespace-nowrap text-white shadow"

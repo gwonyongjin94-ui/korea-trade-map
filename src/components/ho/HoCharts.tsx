@@ -1,6 +1,8 @@
 import { useId } from 'react'
-import { priceAt, produce, relativeDemand, relativeSupply, type Endowment, type Production, type Tech } from '../../model/heckscherOhlin'
-import { linear, ticks } from '../scale'
+import { coneOmegas, priceAt, produce, relativeDemand, relativeSupply, type Endowment, type Production, type Tech } from '../../model/heckscherOhlin'
+import { LegendItem } from '../../ricardo/chart'
+import { around, dot, HALO, labelBox, placeLabels, textWidth, type LabelSpec, type Spot } from '../labels'
+import { linear, tickLabel, ticks, ticksBetween } from '../scale'
 
 const W = 600
 const H = 330
@@ -35,21 +37,80 @@ export function FactorPriceChart({ t, countries, labels }: FactorProps) {
   const omegas = countries.flatMap((c) => [c.autarky.omega, c.trade.omega])
   const top = Math.max(...omegas) * 1.7
   const y = linear(0, top, H - M.bottom, T)
-  const pMax = priceAt(t, top) * 1.08
-  const xl = linear(0, pMax, cx, M.left + 6)
+  // The left panel shows only the stretch of SS the countries use. When the two sectors' factor
+  // intensities are close, goods prices barely move with w/r, and a price axis from zero would press
+  // the whole curve against the edge. So the centre line stands for the lowest price shown, not zero.
+  const oLow = Math.min(top * 0.03, Math.min(...omegas) * 0.5)
+  const prices = countries.flatMap((c) => [c.autarky.p, c.trade.p])
+  const p0 = Math.min(priceAt(t, oLow), ...prices)
+  const p1 = Math.max(priceAt(t, top), ...prices)
+  const pEnd = p1 + (p1 - p0) * 0.06
+  const xl = linear(p0, pEnd, cx, M.left + 6)
+  const pTicks = ticksBetween(p0, pEnd, 4)
   const lks = countries.map((c) => c.e.L / c.e.K)
   const lkMax = Math.max(...lks) * 1.9
   const xr = linear(0, lkMax, cx, W - M.right)
-  const sample = (f: (omega: number) => [number, number]) =>
+  const sample = (from: number, f: (omega: number) => [number, number]) =>
     Array.from({ length: 121 }, (_, i) => {
-      const omega = top * (0.01 + (0.99 * i) / 120)
+      const omega = from + ((top - from) * i) / 120
       const [px, py] = f(omega)
       return `${i ? 'L' : 'M'}${px},${py}`
     }).join(' ')
-  const ss = sample((o) => [xl(priceAt(t, o)), y(o)])
+  const ss = sample(oLow, (o) => [xl(priceAt(t, o)), y(o)])
   const lk = (s: number, o: number) => (1 - s) / s / o
-  const cc = sample((o) => [Math.min(W + 40, xr(lk(t.sC, o))), y(o)])
-  const ff = sample((o) => [Math.min(W + 40, xr(lk(t.sF, o))), y(o)])
+  const cc = sample(top * 0.01, (o) => [Math.min(W + 40, xr(lk(t.sC, o))), y(o)])
+  const ff = sample(top * 0.01, (o) => [Math.min(W + 40, xr(lk(t.sF, o))), y(o)])
+
+  // Markers the labels must not cover: autarky circles, trade dots, the key and the w/r axis title.
+  const keys = [
+    [labels.cc, 'stroke-emerald-600 dark:stroke-emerald-400', 'fill-emerald-700 dark:fill-emerald-300'],
+    [labels.ff, 'stroke-violet-600 dark:stroke-violet-400', 'fill-violet-700 dark:fill-violet-300'],
+  ] as const
+  const keyW = Math.max(...keys.map(([l]) => textWidth(l, 11, true))) + 28
+  const marks = [
+    ...countries.flatMap((c, i) => {
+      const o = c.trade.omega
+      const r = i === 0 ? 1.4 : 1
+      return [
+        dot(xl(c.autarky.p), y(c.autarky.omega), 6.5),
+        ...(c.trade.only === null ? [dot(xl(c.trade.p), y(o), 4.5 * r)] : []),
+        ...(c.trade.only !== 'F' ? [dot(xr(lk(t.sC, o)), y(o), 3.2 * r)] : []),
+        ...(c.trade.only !== 'C' ? [dot(xr(lk(t.sF, o)), y(o), 3.2 * r)] : []),
+      ]
+    }),
+    { x: W - M.right - keyW, y: T, w: keyW, h: 34 },
+  ]
+  const left = { x: M.left, y: T, w: cx - M.left - 2, h: H - M.bottom - T }
+  const right = { x: cx + 2, y: T, w: W - M.right - cx - 2, h: H - M.bottom - T }
+  const spots = around(6, 10)
+  const onSS = placeLabels(
+    [
+      ...countries.map(
+        (c, i): LabelSpec => ({
+          id: `a${i}`,
+          x: xl(c.autarky.p),
+          y: y(c.autarky.omega),
+          text: labels.autarky(c.name),
+          size: 10,
+          bold: true,
+          // Left of the point first: the w/r line runs off to the right.
+          spots: [spots[1], spots[i ? 5 : 4], spots[i ? 4 : 5], spots[0], spots[i ? 3 : 2], spots[i ? 2 : 3], spots[6], spots[7]],
+        }),
+      ),
+      { id: 'ss', x: xl(priceAt(t, top * 0.9)), y: y(top * 0.9), text: labels.ss, size: 12, bold: true, spots: [spots[0], spots[1], spots[3], spots[5]] },
+    ],
+    left,
+    marks,
+  )
+  const lkSpots: Spot[] = [-6, -18, -30, -42].flatMap((dy) => [
+    { dx: 3, dy, anchor: 'start' as const },
+    { dx: -3, dy, anchor: 'end' as const },
+  ])
+  const onLK = placeLabels(
+    countries.map((c, i) => ({ id: `l${i}`, x: xr(lks[i]), y: H - M.bottom, text: labels.endowment(c.name), size: 10, bold: true, spots: lkSpots })),
+    right,
+    [...marks, ...Object.values(onSS).map((p) => p.box)],
+  )
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full text-slate-500 dark:text-slate-400">
@@ -68,10 +129,11 @@ export function FactorPriceChart({ t, countries, labels }: FactorProps) {
       ))}
       <line x1={M.left} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom} className="stroke-slate-400 dark:stroke-slate-600" />
       <line x1={cx} x2={cx} y1={T} y2={H - M.bottom} className="stroke-slate-500 dark:stroke-slate-500" strokeWidth={1.5} />
-      {ticks(pMax, 3).map((v) =>
-        v === 0 ? null : (
+      {pTicks.values.map((v) =>
+        // Skip ticks crowding the centre line, where the right panel's labels start.
+        cx - xl(v) < 22 ? null : (
           <text key={`p${v}`} x={xl(v)} y={H - M.bottom + 14} textAnchor="middle" className="fill-current text-[10px]">
-            {num(v)}
+            {tickLabel(v, pTicks.step)}
           </text>
         ),
       )}
@@ -105,12 +167,12 @@ export function FactorPriceChart({ t, countries, labels }: FactorProps) {
           // With trade: the w/r line across both panels, and the input ratios it implies in each sector.
           // The first country's dots are larger so both show when factor prices are equalized.
           const o = c.trade.omega
-          const onSS = c.trade.only === null
+          const onCurve = c.trade.only === null
           const r = i === 0 ? 1.4 : 1
           return (
             <g key={`t${c.name}`}>
-              <line x1={onSS ? xl(c.trade.p) : cx} x2={xr(lk(t.sC, o))} y1={y(o)} y2={y(o)} strokeDasharray="2 3" className="stroke-slate-400" />
-              {onSS && <circle cx={xl(c.trade.p)} cy={y(o)} r={4.5 * r} className={TONE[c.tone].fill} />}
+              <line x1={onCurve ? xl(c.trade.p) : cx} x2={xr(lk(t.sC, o))} y1={y(o)} y2={y(o)} strokeDasharray="2 3" className="stroke-slate-400" />
+              {onCurve && <circle cx={xl(c.trade.p)} cy={y(o)} r={4.5 * r} className={TONE[c.tone].fill} />}
               {c.trade.only !== 'F' && <circle cx={xr(lk(t.sC, o))} cy={y(o)} r={3.2 * r} className={TONE[c.tone].fill} />}
               {c.trade.only !== 'C' && <circle cx={xr(lk(t.sF, o))} cy={y(o)} r={3.2 * r} className={TONE[c.tone].fill} />}
             </g>
@@ -121,47 +183,32 @@ export function FactorPriceChart({ t, countries, labels }: FactorProps) {
         ))}
       </g>
 
-      {/* A halo keeps the labels legible where they cross the curves. */}
-      <g className="stroke-white text-[10px] dark:stroke-slate-900" strokeWidth={3} strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>
-        {countries.map((c, i) => (
-          <text key={`l${c.name}`} x={xr(lks[i]) + 3} y={H - M.bottom - 6 - i * 12} className={`${TONE[c.tone].fill} font-semibold`}>
-            {labels.endowment(c.name)}
+      <g className={`text-[10px] font-semibold ${HALO}`}>
+        {countries.map((c, i) =>
+          (['a', 'l'] as const).map((kind) => {
+            const p = (kind === 'a' ? onSS : onLK)[`${kind}${i}`]
+            return p ? (
+              <text key={kind + c.name} x={p.x} y={p.y} textAnchor={p.anchor} className={TONE[c.tone].fill}>
+                {kind === 'a' ? labels.autarky(c.name) : labels.endowment(c.name)}
+              </text>
+            ) : null
+          }),
+        )}
+        {onSS.ss && (
+          <text x={onSS.ss.x} y={onSS.ss.y} textAnchor={onSS.ss.anchor} className="fill-slate-700 text-[12px] font-bold dark:fill-slate-200">
+            {labels.ss}
           </text>
-        ))}
-        {countries.map((c, i) => {
-          // Autarky labels sit left of the point unless that would run off the chart.
-          const px = xl(c.autarky.p)
-          const left = px - M.left > 100
-          return (
-            <text
-              key={`al${c.name}`}
-              x={left ? px - 8 : px + 8}
-              y={y(c.autarky.omega) + (i ? 14 : -8)}
-              textAnchor={left ? 'end' : 'start'}
-              className={`${TONE[c.tone].fill} font-semibold`}
-            >
-              {labels.autarky(c.name)}
-            </text>
-          )
-        })}
-        <text x={xl(priceAt(t, top * 0.9)) + 6} y={y(top * 0.9)} className="fill-slate-700 text-[12px] font-bold dark:fill-slate-200">
-          {labels.ss}
-        </text>
-        {/* The input-choice curves get a key in the empty top-right corner: near the top they can run close together. */}
-        {(
-          [
-            [labels.cc, 'stroke-emerald-600 dark:stroke-emerald-400', 'fill-emerald-700 dark:fill-emerald-300'],
-            [labels.ff, 'stroke-violet-600 dark:stroke-violet-400', 'fill-violet-700 dark:fill-violet-300'],
-          ] as const
-        ).map(([label, stroke, fill], i) => (
-          <g key={label}>
-            <line x1={W - M.right - 18} x2={W - M.right} y1={T + 8 + i * 15} y2={T + 8 + i * 15} strokeWidth={2.5} className={stroke} />
-            <text x={W - M.right - 24} y={T + 12 + i * 15} textAnchor="end" className={`${fill} text-[11px] font-bold`}>
-              {label}
-            </text>
-          </g>
-        ))}
+        )}
       </g>
+      {/* The input-choice curves get a key in the empty top-right corner: near the top they can run close together. */}
+      {keys.map(([label, stroke, fill], i) => (
+        <g key={label}>
+          <line x1={W - M.right - 18} x2={W - M.right} y1={T + 8 + i * 15} y2={T + 8 + i * 15} strokeWidth={2.5} className={stroke} />
+          <text x={W - M.right - 24} y={T + 12 + i * 15} textAnchor="end" className={`${fill} text-[11px] font-bold`}>
+            {label}
+          </text>
+        </g>
+      ))}
     </svg>
   )
 }
@@ -177,90 +224,107 @@ interface RsRdProps {
 /** Relative supply of each country and of the world against relative demand (the textbook's fig. 5-9). */
 export function RsRdChart({ t, a, b, pw, labels }: RsRdProps) {
   const clip = useId()
-  const ML = 52
-  const pLo = Math.min(a.pa, b.pa, pw) / 1.5
-  const pHi = Math.max(a.pa, b.pa, pw) * 1.5
+  const ML = 60
+  // The price window where the countries' supplies respond: from where the lower one starts making
+  // cloth to where the higher one stops making food. With similar countries and factor intensities
+  // that window is narrow, and a wider axis would flatten every curve onto one line.
+  const marked = [a.pa, b.pa, pw]
+  const cone = [a.e, b.e].flatMap((e) => coneOmegas(t, e).map((o) => priceAt(t, o)))
+  const lo0 = Math.min(Math.max(Math.min(...cone), Math.min(...marked) / 1.5), Math.min(...marked))
+  const hi0 = Math.max(Math.min(Math.max(...cone), Math.max(...marked) * 1.5), Math.max(...marked))
+  const pad = Math.log(hi0 / lo0) * 0.12 || 0.01
+  const pLo = lo0 / Math.exp(pad)
+  const pHi = hi0 * Math.exp(pad)
   const y = linear(pLo, pHi, H - M.bottom, M.top)
   const xMax = relativeDemand(t, pw) * 2.6
   const x = linear(0, xMax, ML, W - M.right)
   const curve = (es: Endowment[]) =>
-    Array.from({ length: 161 }, (_, i) => {
-      const p = pLo * (pHi / pLo) ** (i / 160)
+    Array.from({ length: 241 }, (_, i) => {
+      const p = pLo * (pHi / pLo) ** (i / 240)
       return `${i ? 'L' : 'M'}${Math.min(W + 40, x(relativeSupply(t, es, p)))},${y(p)}`
     }).join(' ')
   const rd = Array.from({ length: 81 }, (_, i) => {
     const p = pLo * (pHi / pLo) ** (i / 80)
     return `${i ? 'L' : 'M'}${Math.min(W + 40, x(relativeDemand(t, p)))},${y(p)}`
   }).join(' ')
-  const yTicks = ticks(pHi).filter((v) => v >= pLo)
+  const yTicks = ticksBetween(pLo, pHi, 4)
   const xTicks = ticks(xMax)
-  // The world point is labelled below-left and the autarky points above-right, so close points stay readable.
-  const point = (p: number, label: string, cls: string, filled: boolean) => (
-    <g>
-      <circle cx={x(relativeDemand(t, p))} cy={y(p)} r={5.5} strokeWidth={2} className={filled ? 'fill-slate-900 dark:fill-white' : `fill-white dark:fill-slate-900 ${cls}`} />
-      <text
-        x={x(relativeDemand(t, p)) + (filled ? -9 : 8)}
-        y={y(p) + (filled ? 15 : -6)}
-        textAnchor={filled ? 'end' : 'start'}
-        className="fill-slate-700 text-[13px] font-bold dark:fill-slate-200"
-      >
-        {label}
-      </text>
-    </g>
+  const points = [
+    { id: '1', p: a.pa, cls: 'stroke-a', filled: false },
+    { id: '2', p: pw, cls: '', filled: true },
+    { id: '3', p: b.pa, cls: 'stroke-b', filled: false },
+  ]
+  // The world price usually sits next to one autarky price (the larger country's), so each number
+  // finds its own free side of the points.
+  const placed = placeLabels(
+    [1, 0, 2].map((i) => ({ id: points[i].id, x: x(relativeDemand(t, points[i].p)), y: y(points[i].p), text: points[i].id, size: 13, bold: true, spots: around(6, 13) })),
+    { x: ML, y: M.top, w: W - ML - M.right, h: H - M.top - M.bottom },
+    points.map((pt) => dot(x(relativeDemand(t, pt.p)), y(pt.p), 6.5)),
   )
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full text-slate-500 dark:text-slate-400">
-      <defs>
-        <clipPath id={clip}>
-          <rect x={ML} y={M.top} width={W - ML - M.right} height={H - M.top - M.bottom} />
-        </clipPath>
-      </defs>
-      {yTicks.map((v) => (
-        <g key={`y${v}`}>
-          <line x1={ML} x2={W - M.right} y1={y(v)} y2={y(v)} className="stroke-slate-200 dark:stroke-slate-800" />
-          <text x={ML - 6} y={y(v)} dy="0.32em" textAnchor="end" className="fill-current text-[10px]">
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full text-slate-500 dark:text-slate-400">
+        <defs>
+          <clipPath id={clip}>
+            <rect x={ML} y={M.top} width={W - ML - M.right} height={H - M.top - M.bottom} />
+          </clipPath>
+        </defs>
+        {yTicks.values.map((v) => (
+          <g key={`y${v}`}>
+            <line x1={ML} x2={W - M.right} y1={y(v)} y2={y(v)} className="stroke-slate-200 dark:stroke-slate-800" />
+            <text x={ML - 6} y={y(v)} dy="0.32em" textAnchor="end" className="fill-current text-[10px]">
+              {tickLabel(v, yTicks.step)}
+            </text>
+          </g>
+        ))}
+        {xTicks.map((v) => (
+          <text key={`x${v}`} x={x(v)} y={H - M.bottom + 14} textAnchor="middle" className="fill-current text-[10px]">
             {num(v)}
           </text>
+        ))}
+        <line x1={ML} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom} className="stroke-slate-400 dark:stroke-slate-600" />
+        <line x1={ML} x2={ML} y1={M.top} y2={H - M.bottom} className="stroke-slate-400 dark:stroke-slate-600" />
+        <text x={(ML + W - M.right) / 2} y={H - 8} textAnchor="middle" className="fill-current text-[11px]">
+          {labels.x}
+        </text>
+        <text transform={`translate(13,${(M.top + H - M.bottom) / 2}) rotate(-90)`} textAnchor="middle" className="fill-current text-[11px]">
+          {labels.y}
+        </text>
+        <g clipPath={`url(#${clip})`} fill="none">
+          <path d={curve([a.e])} strokeWidth={2} strokeDasharray="6 4" className="stroke-a" />
+          <path d={curve([b.e])} strokeWidth={2} strokeDasharray="6 4" className="stroke-b" />
+          <path d={curve([a.e, b.e])} strokeWidth={2.5} className="stroke-slate-700 dark:stroke-slate-200" />
+          <path d={rd} strokeWidth={2.5} className="stroke-indigo-500" />
         </g>
-      ))}
-      {xTicks.map((v) => (
-        <text key={`x${v}`} x={x(v)} y={H - M.bottom + 14} textAnchor="middle" className="fill-current text-[10px]">
-          {num(v)}
-        </text>
-      ))}
-      <line x1={ML} x2={W - M.right} y1={H - M.bottom} y2={H - M.bottom} className="stroke-slate-400 dark:stroke-slate-600" />
-      <line x1={ML} x2={ML} y1={M.top} y2={H - M.bottom} className="stroke-slate-400 dark:stroke-slate-600" />
-      <text x={(ML + W - M.right) / 2} y={H - 8} textAnchor="middle" className="fill-current text-[11px]">
-        {labels.x}
-      </text>
-      <text transform={`translate(13,${(M.top + H - M.bottom) / 2}) rotate(-90)`} textAnchor="middle" className="fill-current text-[11px]">
-        {labels.y}
-      </text>
-      <g clipPath={`url(#${clip})`} fill="none">
-        <path d={curve([a.e])} strokeWidth={2} strokeDasharray="6 4" className="stroke-a" />
-        <path d={curve([b.e])} strokeWidth={2} strokeDasharray="6 4" className="stroke-b" />
-        <path d={curve([a.e, b.e])} strokeWidth={2.5} className="stroke-slate-700 dark:stroke-slate-200" />
-        <path d={rd} strokeWidth={2.5} className="stroke-indigo-500" />
-      </g>
-      {point(a.pa, '1', 'stroke-a', false)}
-      {point(pw, '2', '', true)}
-      {point(b.pa, '3', 'stroke-b', false)}
-      <g className="text-[11px] font-semibold">
-        <text x={W - M.right - 4} y={M.top + 12} textAnchor="end" className="fill-a">
-          ┅ {labels.rsA}
-        </text>
-        <text x={W - M.right - 4} y={M.top + 26} textAnchor="end" className="fill-b">
-          ┅ {labels.rsB}
-        </text>
-        <text x={W - M.right - 4} y={M.top + 40} textAnchor="end" className="fill-slate-700 dark:fill-slate-200">
-          ━ {labels.rsWorld}
-        </text>
-        <text x={W - M.right - 4} y={M.top + 54} textAnchor="end" className="fill-indigo-500">
-          ━ {labels.rd}
-        </text>
-      </g>
-    </svg>
+        {points.map((pt) => (
+          <circle
+            key={pt.id}
+            cx={x(relativeDemand(t, pt.p))}
+            cy={y(pt.p)}
+            r={5.5}
+            strokeWidth={2}
+            className={pt.filled ? 'fill-slate-900 dark:fill-white' : `fill-white dark:fill-slate-900 ${pt.cls}`}
+          />
+        ))}
+        <g className={`fill-slate-700 text-[13px] font-bold dark:fill-slate-200 ${HALO}`}>
+          {points.map((pt) => {
+            const l = placed[pt.id]
+            return l ? (
+              <text key={pt.id} x={l.x} y={l.y} textAnchor={l.anchor}>
+                {pt.id}
+              </text>
+            ) : null
+          })}
+        </g>
+      </svg>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+        <LegendItem swatch={<line x1={-7} x2={7} strokeWidth={2} strokeDasharray="4 2" className="stroke-a" />} label={labels.rsA} />
+        <LegendItem swatch={<line x1={-7} x2={7} strokeWidth={2} strokeDasharray="4 2" className="stroke-b" />} label={labels.rsB} />
+        <LegendItem swatch={<line x1={-7} x2={7} strokeWidth={2.5} className="stroke-slate-700 dark:stroke-slate-200" />} label={labels.rsWorld} />
+        <LegendItem swatch={<line x1={-7} x2={7} strokeWidth={2.5} className="stroke-indigo-500" />} label={labels.rd} />
+      </div>
+    </div>
   )
 }
 
@@ -306,6 +370,14 @@ export function BoxChart({ t, e, p, grow, labels }: BoxProps) {
     </g>
   )
   const moved = grow > 0
+  // The two allocations sit close together for small increases: give each label its own side.
+  const pts = { before: [x(before.LC), y(before.KC)], after: [x(after.LC), y(after.KC)] } as const
+  const origins = [labelBox(x(0), y(0) + 16, textWidth(`↗ ${labels.originC}`, 11, true), 11, 'start'), labelBox(x(e.L), y(kMax) - 6, textWidth(`${labels.originF} ↙`, 11, true), 11, 'end')]
+  const tags = placeLabels(
+    (moved ? ['after' as const, 'before' as const] : ['before' as const]).map((k) => ({ id: k, x: pts[k][0], y: pts[k][1], text: labels[k], size: 11, bold: true, spots: around(6, 11) })),
+    { x: 0, y: 0, w: W, h: H - 22 },
+    [...Object.values(pts).map(([px, py]) => dot(px, py, 6.5)), ...origins],
+  )
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full text-slate-500 dark:text-slate-400">
@@ -326,14 +398,16 @@ export function BoxChart({ t, e, p, grow, labels }: BoxProps) {
         <text transform={`translate(${x(0) - 10},${(y(0) + y(kMax)) / 2}) rotate(-90)`} textAnchor="middle" className="fill-current">
           {labels.K} →
         </text>
-        <text x={x(before.LC) + 9} y={y(before.KC) + (moved ? 14 : -8)} className="fill-slate-700 font-semibold dark:fill-slate-200">
-          {labels.before}
-        </text>
-        {moved && (
-          <text x={x(after.LC) + 9} y={y(after.KC) - 8} className="fill-slate-700 font-semibold dark:fill-slate-200">
-            {labels.after}
-          </text>
-        )}
+      </g>
+      <g className={`fill-slate-700 text-[11px] font-semibold dark:fill-slate-200 ${HALO}`}>
+        {(['after', 'before'] as const).map((k) => {
+          const l = tags[k]
+          return l ? (
+            <text key={k} x={l.x} y={l.y} textAnchor={l.anchor}>
+              {labels[k]}
+            </text>
+          ) : null
+        })}
       </g>
     </svg>
   )
